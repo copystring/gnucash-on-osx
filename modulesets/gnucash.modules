@@ -68,6 +68,23 @@
     </dependencies>
   </autotools>
 
+  <autotools id="gwenhywfar-gtk4" autogen-sh="autoreconf"
+	     autogenargs="--with-guis='gtk4' --enable-local-install">
+    <branch module="630/gwenhywfar-5.14.1.tar.gz"
+            checkoutdir="gwenhywfar-5.14.1-gtk4" version="5.14.1"
+            hash="sha256:8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3"
+            repo="aqbanking" >
+      <patch file="gwen-include-file.patch" strip="1"/>
+      <patch file="gwen-macos-bundle-path.patch" strip="1"/>
+      <patch file="gwenhywfar-5.14.1-gtk4.patch" strip="1"/>
+    </branch>
+    <dependencies>
+      <dep package="libgcrypt"/>
+      <dep package="gnutls"/>
+      <dep package="gtk-4"/>
+    </dependencies>
+  </autotools>
+
   <autotools id="gwenhywfar-git" autogen-template="make -fMakefile.cvs &amp;&amp; %(srcdir)s/configure --prefix %(prefix)s %(autogenargs)s"
              autogenargs="--with-guis='gtk3' --enable-local-install"
              supports-non-srcdir-builds="no">
@@ -100,6 +117,22 @@
     </branch>
     <dependencies>
       <dep package="gwenhywfar"/>
+      <dep package="gmp"/>
+      <dep package="xmlsec"/>
+      <dep package="libxslt"/>
+      <dep package="libchipcard"/>
+    </dependencies>
+  </autotools>
+
+  <autotools id="aqbanking-gtk4" autogen-sh="autoreconf" makeargs="-j1"
+	     autogenargs="--enable-local-install">
+    <branch module="654/aqbanking-6.9.2.tar.gz"
+            checkoutdir="aqbanking-6.9.2-gtk4" version="6.9.2"
+            hash="sha256:244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f"
+            repo="aqbanking">
+    </branch>
+    <dependencies>
+      <dep package="gwenhywfar-gtk4"/>
       <dep package="gmp"/>
       <dep package="xmlsec"/>
       <dep package="libxslt"/>
@@ -278,6 +311,16 @@
     </dependencies>
  </cmake>
 
+ <cmake id="gnucash-future-git"
+        cmakeargs="-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON -DGTEST_ROOT=${JHBUILD_SOURCE}/googletest-1.17.0/">
+   <branch repo="github" module="Gnucash/gnucash.git" revision="future"
+	   checkoutdir="gnucash-future-git"/>
+    <dependencies>
+      <dep package="meta-gnucash-gtk4-dependencies"/>
+      <dep package="shared-mime-info-2.2"/>
+    </dependencies>
+ </cmake>
+
  <metamodule id="meta-gnucash-dependencies">
    <dependencies>
       <dep package="aqbanking"/>
@@ -298,6 +341,25 @@
    </dependencies>
  </metamodule>
 
+ <metamodule id="meta-gnucash-gtk4-dependencies">
+   <dependencies>
+      <dep package="aqbanking-gtk4"/>
+      <dep package="boost"/>
+      <dep package="googletest"/>
+      <dep package="guile30"/>
+      <dep package="iso-codes"/>
+      <dep package="libdbi-drivers"/>
+      <dep package="libofx"/>
+      <dep package="mariadb-connector"/>
+      <dep package="meta-gtk-osx-bootstrap"/>
+      <dep package="gtk-4"/>
+      <dep package="adwaita-icon-theme"/>
+      <dep package="pgsql"/>
+      <dep package="shared-mime-info-2.2"/>
+      <dep package="sqlite"/>
+      <dep package="swig"/>
+   </dependencies>
+ </metamodule>
  <cmake id="gnucash-docs-git"
         ninjaargs="html" >
    <branch  repo="github" module="Gnucash/gnucash-docs.git" revision="stable"

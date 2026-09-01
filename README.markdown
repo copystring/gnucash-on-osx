@@ -9,6 +9,15 @@ Please see http://wiki.gnucash.org/wiki/MacOSX/Quartz for instructions.
 The Github Mac runners are Apple Silicon so this must be done on an
 Apple Silicon Mac.
 
+The gtk4-macos-dependencies workflow automates the same JHBuild
+procedure on the macos-26 Apple Silicon runner. It builds
+meta-gnucash-gtk4-dependencies, verifies GTK4, gtk4-macos,
+gwengui-gtk4, and AqBanking, assembles the dependency archive, and
+then builds and tests the selected GnuCash revision using only the
+archive contents. The workflow uploads the archive and its SHA-256
+digest as artifacts; publishing it to SourceForge remains a separate
+maintainer action.
+
 ##### Prerequisites #####
 1. Set up [gtk-osx](https://gitlab.gnome.org/GNOME/gtk-osx/README.md)
 on your system.
@@ -35,14 +44,19 @@ on your system.
    ```
    cd /Users/runner
    jhbuild --prefix /Users/runner/gnucash bootstrap-gtk-osx
-   jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modules/gnucash.modules build meta-gnucash-dependencies
+   jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules build meta-gnucash-dependencies
    ```
+   For the GTK4 future branch use:
+   ~~~
+   jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules build meta-gnucash-gtk4-dependencies
+   ~~~
 3. Start a jhbuild shell:
    ```
-    jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modules/gnucash.modules shell
+    jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules shell
    ```
-4. Run `depstarball.sh`. It uses absolute paths so it can be run from
-   any directory. If GnuCash compiles and all the tests pass,
+4. Run depstarball.sh. It can be run from any directory. Set
+   DEPS_FILE to dependencies-gtk4.txt and VERIFY_GTK4 to 1 for a GTK4
+   archive. If GnuCash compiles and all the tests pass,
    proceed. If not then diagnose the problem, adjust dependencies.txt
    as needed, and try again.
 

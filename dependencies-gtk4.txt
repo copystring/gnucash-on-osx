@@ -1,0 +1,167 @@
+bin/aqbanking-cli
+bin/aqbanking-config
+bin/aqebics-tool
+bin/aqhbci-tool4
+bin/aqofxconnect-tool
+bin/aqpaypal-tool
+bin/ccache-swig
+bin/cardcommander
+bin/chipcard-config
+bin/chipcard-tool
+bin/cmake
+bin/ctest
+bin/gettext
+bin/gio-querymodules
+bin/glib-compile-resources
+bin/glib-compile-schemas
+bin/glib-genmarshal
+bin/glib-gettextize
+bin/glib-mkenums
+bin/gsettings
+bin/gtk4-builder-tool
+bin/gtester
+bin/gtester-report
+bin/guile
+bin/guild
+bin/msgmerge
+bin/msgfmt
+bin/pkgconf
+bin/python3.14
+bin/python3
+bin/python3-config
+bin/python3.14-config
+bin/swig
+bin/xgettext
+bin/xsltproc
+lib/aqbanking/
+lib/dbd/libdbdpgsql.so
+lib/dbd/libdbdsqlite3.so
+lib/dbd/libdbdmysql.so
+lib/gdk-pixbuf-2.0/
+lib/gio/
+lib/glib-2.0/
+lib/gtk-4.0/4.0.0/
+lib/guile/3.0/
+lib/gwenhywfar/
+lib/libaqbanking.dylib lib/libaqbanking.44.dylib
+lib/libatk-1.0.dylib lib/libatk-1.0.0.dylib
+lib/libboost_atomic.dylib
+lib/libboost_charconv.dylib
+lib/libboost_chrono.dylib
+lib/libboost_container.dylib
+lib/libboost_date_time.dylib
+lib/libboost_filesystem.dylib
+lib/libboost_locale.dylib
+lib/libboost_program_options.dylib
+lib/libboost_regex.dylib
+lib/libboost_thread.dylib
+lib/libcairo-gobject.dylib lib/libcairo-gobject.2.dylib
+lib/libcairo.dylib lib/libcairo.2.dylib
+lib/libchipcard.dylib lib/libchipcard.6.dylib
+lib/libcrypto.dylib lib/libcrypto.3.dylib
+lib/libdbi.dylib lib/libdbi.3.dylib
+lib/libenchant-2.dylib lib/libenchant-2.2.dylib
+lib/libepoxy.dylib lib/libepoxy.0.dylib
+lib/libexslt.dylib lib/libexslt.0.dylib
+lib/libffi.dylib lib/libffi.8.dylib
+lib/libfontconfig.dylib lib/libfontconfig.1.dylib
+lib/libfreetype.dylib lib/libfreetype.6.dylib lib/libfreetype.6.20.6.dylib
+lib/libfribidi.dylib lib/libfribidi.0.dylib
+lib/libgc.dylib lib/libgc.1.dylib lib/libgc.1.5.6.dylib
+lib/libgcrypt.dylib lib/libgcrypt.20.dylib
+lib/libgdk-4.dylib lib/libgdk-4.1.dylib
+lib/libgraphene-1.0.dylib lib/libgraphene-1.0.0.dylib
+lib/libgdk_pixbuf-2.0.dylib lib/libgdk_pixbuf-2.0.0.dylib
+lib/libgettextsrc.dylib lib/libgettextsrc-1.0.dylib
+lib/libgettextlib.dylib lib/libgettextlib-1.0.dylib
+lib/libgettextlib.dylib lib/libgettextpo.0.dylib
+lib/libgio-2.0.dylib lib/libgio-2.0.0.dylib
+lib/libglib-2.0.dylib lib/libglib-2.0.0.dylib
+lib/libgmodule-2.0.dylib lib/libgmodule-2.0.0.dylib
+lib/libgmp.dylib lib/libgmp.10.dylib
+lib/libgnutls.dylib lib/libgnutls.30.dylib
+lib/libgobject-2.0.dylib lib/libgobject-2.0.0.dylib
+lib/libgpg-error.dylib lib/libgpg-error.0.dylib
+lib/libgthread-2.0.dylib lib/libgthread-2.0.0.dylib
+lib/libgtk-4.dylib lib/libgtk-4.1.dylib
+lib/libgsk-4.dylib lib/libgsk-4.1.dylib
+lib/libguile-3.0.dylib lib/libguile-3.0.1.dylib
+lib/libgwengui-gtk4.dylib lib/libgwengui-gtk4.79.dylib
+lib/libgwenhywfar.dylib lib/libgwenhywfar.79.dylib
+lib/libharfbuzz-icu.dylib lib/libharfbuzz-icu.0.dylib
+lib/libharfbuzz.dylib lib/libharfbuzz.0.dylib
+lib/libhogweed.dylib lib/libhogweed.7.dylib lib/libhogweed.7.0.dylib
+lib/libiconv.dylib lib/libiconv.2.dylib
+lib/libicudata.dylib lib/libicudata.78.dylib lib/libicudata.78.3.dylib
+lib/libicui18n.dylib lib/libicui18n.78.dylib lib/libicui18n.78.3.dylib
+lib/libicuio.dylib lib/libicuio.78.dylib lib/libicuio.78.3.dylib
+lib/libicuuc.dylib lib/libicuuc.78.dylib lib/libicuuc.78.3.dylib
+lib/libintl.dylib lib/libintl.8.dylib
+lib/libjpeg.dylib lib/libjpeg.62.dylib lib/libjpeg.62.4.0.dylib
+lib/libltdl.dylib lib/libltdl.7.dylib
+lib/liblzma.dylib lib/liblzma.5.dylib
+lib/libnettle.dylib lib/libnettle.9.dylib lib/libnettle.9.0.dylib
+lib/libofx.dylib lib/libofx.7.dylib
+lib/libosp.dylib lib/libosp.5.dylib
+lib/libp11-kit.dylib lib/libp11-kit.0.dylib
+lib/libpango-1.0.dylib lib/libpango-1.0.0.dylib
+lib/libpangocairo-1.0.dylib lib/libpangocairo-1.0.0.dylib
+lib/libpangoft2-1.0.dylib lib/libpangoft2-1.0.0.dylib
+lib/libpcre2-8.dylib lib/libpcre2-8.0.dylib
+lib/libpixman-1.dylib lib/libpixman-1.0.dylib
+lib/libpkgconf.dylib lib/libpkgconf.7.dylib
+lib/libpng16.dylib lib/libpng16.16.dylib
+lib/libpq.dylib lib/libpq.5.dylib
+lib/libproxy.dylib lib/libproxy.1.dylib
+lib/libproxy/libpxbackend-1.0.dylib
+lib/libpsl.dylib lib/libpsl.5.dylib
+lib/libpython3.14.dylib
+lib/librsvg-2.dylib lib/librsvg-2.2.dylib
+lib/libsharpyuv.dylib lib/libsharpyuv.0.dylib
+lib/libsqlite3.dylib lib/libsqlite3.0.dylib lib/libsqlite3.3.53.0.dylib
+lib/libssl.dylib lib/libssl.3.dylib
+lib/libtasn1.dylib lib/libtasn1.6.dylib
+lib/libtextstyle.dylib lib/libtextstyle.0.dylib
+lib/libtiff.dylib lib/libtiff.6.dylib lib/libtiff.6.2.0.dylib
+lib/libunistring.dylib lib/libunistring.5.dylib
+lib/libwebp.dylib lib/libwebp.7.dylib
+lib/libwebpdemux.dylib lib/libwebpdemux.2.dylib
+lib/libxml2.dylib lib/libxml2.16.dylib
+lib/libxslt.dylib lib/libxslt.1.dylib
+lib/libxmlsec1.dylib lib/libxmlsec1.1.dylib
+lib/libz.dylib lib/libz.1.dylib lib/libz.1.3.2.dylib
+lib/mariadb/libmariadb.dylib lib/mariadb/libmariadb.3.dylib lib/mariadb/libmysqlclient.dylib
+lib/pkgconfig/
+lib/python3.14/
+include/atk-1.0/
+include/libxml2/
+include/aqbanking6/
+include/boost/
+include/cairo/
+include/dbi/
+include/freetype2/
+include/fribidi/
+include/gmp.h
+include/gdk-pixbuf-2.0/
+include/gio-unix-2.0/
+include/glib-2.0/
+include/graphene-1.0/
+include/gtk-4.0/
+include/gwenhywfar5/
+include/guile/
+include/harfbuzz/
+include/libintl.h
+include/libofx/libofx.h
+include/libpng16/
+include/libxml2/
+include/pango-1.0/
+include/pixman-1
+include/python3.14/
+include/unicode/
+include/webp/
+share/cmake-4.3/
+share/gettext/
+share/gettext-1.0/
+share/guile/3.0
+share/pkgconfig/
+share/swig/

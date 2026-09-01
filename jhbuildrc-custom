@@ -17,6 +17,8 @@ _modules_stable = ['pygments', 'meta-gtk-osx-bootstrap',
                    'meta-gnucash-dependencies', 'gnucash', 'gnucash-docs']
 _modules_git = ['pygments', 'meta-gtk-osx-bootstrap',
                 'meta-gnucash-dependencies','gnucash-git', 'gnucash-docs-git']
+_modules_future = ['pygments', 'meta-gtk-osx-bootstrap',
+                   'meta-gnucash-gtk4-dependencies', 'gnucash-future-git']
 
 #set modules to the _modules variable above corresponding you what you need.
 modules = _modules_stable

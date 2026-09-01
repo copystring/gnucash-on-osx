@@ -1,0 +1,100 @@
+name: gtk4-macos-dependencies
+
+on:
+  push:
+    branches:
+      - feature/gtk4-dependencies
+  workflow_dispatch:
+    inputs:
+      gnucash_repository:
+        description: GnuCash repository to build
+        required: true
+        default: Gnucash/gnucash
+      gnucash_ref:
+        description: GnuCash branch, tag, or commit to build
+        required: true
+        default: future
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build GTK4 dependencies and GnuCash
+    runs-on: macos-26
+    timeout-minutes: 350
+    env:
+      ROOT_DIR: /Users/runner/gnucash
+      JHBUILD: /Users/runner/.new_local/bin/jhbuild
+      MODULESET: ${{ github.workspace }}/gnucash-on-osx/modulesets/gnucash.modules
+    steps:
+      - name: Checkout gnucash-on-osx
+        uses: actions/checkout@v6
+        with:
+          path: gnucash-on-osx
+
+      - name: Checkout GnuCash
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.gnucash_repository || 'copystring/gnucash' }}
+          ref: ${{ inputs.gnucash_ref || 'feature/gtk4-migration-updated' }}
+          path: gnucash-source
+
+      - name: Install GTK-OSX build environment
+        env:
+          GTK_OSX_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
+        run: |
+          curl --fail --location --show-error \
+            "https://raw.githubusercontent.com/GNOME/gtk-osx/$GTK_OSX_REF/gtk-osx-setup.sh" \
+            --output "$RUNNER_TEMP/gtk-osx-setup.sh"
+          bash "$RUNNER_TEMP/gtk-osx-setup.sh"
+          echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
+
+      - name: Bootstrap GTK-OSX
+        run: |
+          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" \
+            bootstrap-gtk-osx
+
+      - name: Build GTK4 dependencies
+        run: |
+          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" \
+            build meta-gnucash-gtk4-dependencies
+
+      - name: Verify GTK4 dependency contract
+        run: |
+          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+            "$ROOT_DIR/inst/bin/pkgconf" --atleast-version=4.14 gtk4
+          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+            "$ROOT_DIR/inst/bin/pkgconf" --exists \
+            gtk4-macos gwengui-gtk4 aqbanking
+
+      - name: Assemble archive and test GnuCash
+        env:
+          GC_VERSION: future-gtk4
+          GNC_SOURCE_DIR: ${{ github.workspace }}/gnucash-source
+          DEPS_FILE: ${{ github.workspace }}/gnucash-on-osx/dependencies-gtk4.txt
+          TARBALL: ${{ github.workspace }}/gnucash-future-gtk4-mac-dependencies.tar
+          VERIFY_GTK4: 1
+        run: |
+          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+            bash "$GITHUB_WORKSPACE/gnucash-on-osx/depstarball.sh"
+          shasum -a 256 \
+            "$GITHUB_WORKSPACE/gnucash-future-gtk4-mac-dependencies.tar.xz" \
+            > "$GITHUB_WORKSPACE/gnucash-future-gtk4-mac-dependencies.tar.xz.sha256"
+
+      - name: Upload dependency archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: gnucash-future-gtk4-mac-dependencies
+          path: |
+            gnucash-future-gtk4-mac-dependencies.tar.xz
+            gnucash-future-gtk4-mac-dependencies.tar.xz.sha256
+          if-no-files-found: error
+
+      - name: Upload test log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-gtk4-test-log
+          path: /Users/runner/gnucash/build/gnucash-git/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
