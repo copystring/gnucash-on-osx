@@ -45,6 +45,8 @@ jobs:
         env:
           GTK_OSX_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
         run: |
+          brew install perl-xml-parser
+          perl -MXML::Parser -e 1
           curl --fail --location --show-error \
             "https://raw.githubusercontent.com/GNOME/gtk-osx/$GTK_OSX_REF/gtk-osx-setup.sh" \
             --output "$RUNNER_TEMP/gtk-osx-setup.sh"
