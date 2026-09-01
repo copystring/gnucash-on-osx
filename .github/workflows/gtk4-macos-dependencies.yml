@@ -9,11 +9,9 @@ on:
       gnucash_repository:
         description: GnuCash repository to build
         required: true
-        default: Gnucash/gnucash
       gnucash_ref:
         description: GnuCash branch, tag, or commit to build
         required: true
-        default: future
 
 permissions:
   contents: read

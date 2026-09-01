@@ -28,9 +28,11 @@ on your system.
    sudo chown -R <your userid> /Users/runner
    ```
 ##### Procedure #####
-1. Change the file versions in dependencies.txt to match the versions
-   in the build you just made.
-   Change GNC_VERSION in depstarball.sh to match the current or next
+1. Change the file versions in the dependency manifest to match the
+   versions in the build you just made. For the GTK4 future branch, use
+   `dependencies-gtk4.txt` by setting `DEPS_FILE` when running
+   `depstarball.sh`; the default manifest remains `dependencies.txt`.
+   Change `GC_VERSION` in `depstarball.sh` to match the current or next
    release as appropriate. If that's not changing consider adding a
    suffix (e.g. 5.13-1) so that the new and old can coexist on
    sourceforge.
@@ -58,10 +60,10 @@ on your system.
     jhbuild shell
    ```
 4. Run depstarball.sh. It can be run from any directory. Set
-   DEPS_FILE to dependencies-gtk4.txt and VERIFY_GTK4 to 1 for a GTK4
+   `DEPS_FILE=dependencies-gtk4.txt` and `VERIFY_GTK4=1` for a GTK4
    archive. If GnuCash compiles and all the tests pass,
-   proceed. If not then diagnose the problem, adjust dependencies.txt
-   as needed, and try again.
+   proceed. If not then diagnose the problem, adjust the manifest selected
+   by `DEPS_FILE`, and try again.
 
 ##### Finish up #####
 1. Upload the result to the Dependencies folder in GnuCash's
@@ -69,4 +71,5 @@ on your system.
 2. Change the dependencies file URI in
    `gnucash-git/.github/workflows/macos-tests.yaml` to match the file you
    just made, commit the result, and push it.
-3. Commit and push any changes you made to `dependencies.txt` and `depstarball.sh`.
+3. Commit and push any changes you made to the selected dependency manifest
+   and `depstarball.sh`.
