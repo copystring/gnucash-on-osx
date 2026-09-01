@@ -25,6 +25,7 @@ jobs:
     timeout-minutes: 350
     env:
       ROOT_DIR: /Users/runner/gnucash
+      PREFIX: /Users/runner/gnucash
       JHBUILD: /Users/runner/.new_local/bin/jhbuild
       MODULESET: ${{ github.workspace }}/gnucash-on-osx/modulesets/gnucash.modules
     steps:
@@ -48,23 +49,23 @@ jobs:
             "https://raw.githubusercontent.com/GNOME/gtk-osx/$GTK_OSX_REF/gtk-osx-setup.sh" \
             --output "$RUNNER_TEMP/gtk-osx-setup.sh"
           bash "$RUNNER_TEMP/gtk-osx-setup.sh"
+          cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
+            "$HOME/.config/jhbuildrc-custom"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
         run: |
-          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" \
-            bootstrap-gtk-osx
+          "$JHBUILD" bootstrap-gtk-osx
 
       - name: Build GTK4 dependencies
         run: |
-          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" \
-            build meta-gnucash-gtk4-dependencies
+          "$JHBUILD" build meta-gnucash-gtk4-dependencies
 
       - name: Verify GTK4 dependency contract
         run: |
-          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+          "$JHBUILD" run \
             "$ROOT_DIR/inst/bin/pkgconf" --atleast-version=4.14 gtk4
-          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+          "$JHBUILD" run \
             "$ROOT_DIR/inst/bin/pkgconf" --exists \
             gtk4-macos gwengui-gtk4 aqbanking
 
@@ -76,7 +77,7 @@ jobs:
           TARBALL: ${{ github.workspace }}/gnucash-future-gtk4-mac-dependencies.tar
           VERIFY_GTK4: 1
         run: |
-          "$JHBUILD" --prefix "$ROOT_DIR" --moduleset="$MODULESET" run \
+          "$JHBUILD" run \
             bash "$GITHUB_WORKSPACE/gnucash-on-osx/depstarball.sh"
           shasum -a 256 \
             "$GITHUB_WORKSPACE/gnucash-future-gtk4-mac-dependencies.tar.xz" \

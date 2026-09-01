@@ -43,16 +43,19 @@ on your system.
 2. Build the dependencies:
    ```
    cd /Users/runner
-   jhbuild --prefix /Users/runner/gnucash bootstrap-gtk-osx
-   jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules build meta-gnucash-dependencies
+   export PREFIX=/Users/runner/gnucash
+   export MODULESET=/Path/to/gnucash-on-osx/modulesets/gnucash.modules
+   cp /Path/to/gnucash-on-osx/jhbuildrc-custom ~/.config/jhbuildrc-custom
+   jhbuild bootstrap-gtk-osx
+   jhbuild build meta-gnucash-dependencies
    ```
    For the GTK4 future branch use:
    ~~~
-   jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules build meta-gnucash-gtk4-dependencies
+   jhbuild build meta-gnucash-gtk4-dependencies
    ~~~
 3. Start a jhbuild shell:
    ```
-    jhbuild --prefix /Users/runner/gnucash --moduleset=/Path/to/gnucash-on-osx/modulesets/gnucash.modules shell
+    jhbuild shell
    ```
 4. Run depstarball.sh. It can be run from any directory. Set
    DEPS_FILE to dependencies-gtk4.txt and VERIFY_GTK4 to 1 for a GTK4
