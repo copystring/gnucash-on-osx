@@ -59,6 +59,10 @@ jobs:
         run: |
           "$JHBUILD" bootstrap-gtk-osx
 
+      - name: Build Python tooling
+        run: |
+          "$JHBUILD" build pygments
+
       - name: Build GTK4 dependencies
         run: |
           "$JHBUILD" build meta-gnucash-gtk4-dependencies
