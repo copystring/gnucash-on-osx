@@ -71,6 +71,49 @@ verify_gtk4_dependencies()
     done
 }
 
+verify_macho_closure()
+{
+    local binary
+    local dependency
+    local relative_dependency
+    local missing_file="$TAR_DIR/.missing-macho-dependencies"
+
+    if [ "${VERIFY_GTK4:-0}" != 1 ]; then
+        return
+    fi
+    if ! command -v otool >/dev/null; then
+        echo "otool is required to verify the GTK4 dependency archive" >&2
+        return 1
+    fi
+
+    : > "$missing_file"
+    while IFS= read -r -d '' binary
+    do
+        if ! file "$binary" | grep -q 'Mach-O'; then
+            continue
+        fi
+        while IFS= read -r dependency
+        do
+            case "$dependency" in
+                "$INST_DIR"/*)
+                    relative_dependency="${dependency#"$INST_DIR"/}"
+                    if [ ! -e "$TAR_DIR/$relative_dependency" ]; then
+                        printf '%s\n' "$relative_dependency" >> "$missing_file"
+                    fi
+                    ;;
+            esac
+        done < <(otool -L "$binary" 2>/dev/null | awk 'NR > 1 { print $1 }')
+    done < <(find "$TAR_DIR/bin" "$TAR_DIR/lib" -type f -print0)
+
+    if [ -s "$missing_file" ]; then
+        echo "GTK4 dependency archive has unresolved Mach-O dependencies:" >&2
+        sort -u "$missing_file" >&2
+        rm -f "$missing_file"
+        return 1
+    fi
+    rm -f "$missing_file"
+}
+
 reset_from_tarball()
 {
     local entry
@@ -153,6 +196,7 @@ test_tarball()
     pushd "$TAR_DIR"
     tar -xf "$COMP_TARBALL"
     popd
+    verify_macho_closure
     enable_tarball
     verify_gtk4_dependencies
     clean_directory "$BUILD_DIR"

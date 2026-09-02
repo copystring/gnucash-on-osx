@@ -56,6 +56,7 @@ lib/libboost_program_options.dylib
 lib/libboost_regex.dylib
 lib/libboost_thread.dylib
 lib/libcairo-gobject.dylib lib/libcairo-gobject.2.dylib
+lib/libcairo-script-interpreter.dylib lib/libcairo-script-interpreter.2.dylib
 lib/libcairo.dylib lib/libcairo.2.dylib
 lib/libchipcard.dylib lib/libchipcard.6.dylib
 lib/libcrypto.dylib lib/libcrypto.3.dylib
