@@ -86,6 +86,7 @@ lib/libguile-3.0.dylib lib/libguile-3.0.1.dylib
 lib/libgwengui-gtk4.dylib lib/libgwengui-gtk4.79.dylib
 lib/libgwenhywfar.dylib lib/libgwenhywfar.79.dylib
 lib/libharfbuzz-icu.dylib lib/libharfbuzz-icu.0.dylib
+lib/libharfbuzz-subset.dylib lib/libharfbuzz-subset.0.dylib
 lib/libharfbuzz.dylib lib/libharfbuzz.0.dylib
 lib/libhogweed.dylib lib/libhogweed.7.dylib lib/libhogweed.7.0.dylib
 lib/libiconv.dylib lib/libiconv.2.dylib
