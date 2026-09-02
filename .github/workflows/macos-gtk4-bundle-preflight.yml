@@ -27,9 +27,6 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 120
     env:
-      ROOT_DIR: ${{ runner.temp }}/gnucash-bundle-preflight
-      PREFIX: ${{ runner.temp }}/gnucash-bundle-preflight
-      INSTALL_PREFIX: ${{ runner.temp }}/gnucash-bundle-preflight/inst
       JHBUILD: /Users/runner/.new_local/bin/jhbuild
       MODULESET: ${{ github.workspace }}/gnucash-on-osx/modulesets/gnucash.modules
       GTK_OSX_SETUP_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
@@ -38,6 +35,16 @@ jobs:
       GTEST_SHA256: 65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
 
     steps:
+      - name: Initialize build paths
+        run: |
+          set -euo pipefail
+          build_root="$RUNNER_TEMP/gnucash-bundle-preflight"
+          {
+            printf 'ROOT_DIR=%s\n' "$build_root"
+            printf 'PREFIX=%s\n' "$build_root"
+            printf 'INSTALL_PREFIX=%s\n' "$build_root/inst"
+          } >> "$GITHUB_ENV"
+
       - name: Checkout gnucash-on-osx
         uses: actions/checkout@v6
         with:
