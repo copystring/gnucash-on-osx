@@ -40,7 +40,6 @@ lib/dbd/libdbdmysql.so
 lib/gdk-pixbuf-2.0/
 lib/gio/
 lib/glib-2.0/
-lib/gtk-4.0/4.0.0/
 lib/guile/3.0/
 lib/gwenhywfar/
 lib/libaqbanking.dylib lib/libaqbanking.44.dylib
@@ -60,7 +59,6 @@ lib/libcairo.dylib lib/libcairo.2.dylib
 lib/libchipcard.dylib lib/libchipcard.6.dylib
 lib/libcrypto.dylib lib/libcrypto.3.dylib
 lib/libdbi.dylib lib/libdbi.3.dylib
-lib/libenchant-2.dylib lib/libenchant-2.2.dylib
 lib/libepoxy.dylib lib/libepoxy.0.dylib
 lib/libexslt.dylib lib/libexslt.0.dylib
 lib/libffi.dylib lib/libffi.8.dylib
@@ -69,7 +67,6 @@ lib/libfreetype.dylib lib/libfreetype.6.dylib lib/libfreetype.6.20.6.dylib
 lib/libfribidi.dylib lib/libfribidi.0.dylib
 lib/libgc.dylib lib/libgc.1.dylib lib/libgc.1.5.6.dylib
 lib/libgcrypt.dylib lib/libgcrypt.20.dylib
-lib/libgdk-4.dylib lib/libgdk-4.1.dylib
 lib/libgraphene-1.0.dylib lib/libgraphene-1.0.0.dylib
 lib/libgdk_pixbuf-2.0.dylib lib/libgdk_pixbuf-2.0.0.dylib
 lib/libgettextsrc.dylib lib/libgettextsrc-1.0.dylib
@@ -84,7 +81,6 @@ lib/libgobject-2.0.dylib lib/libgobject-2.0.0.dylib
 lib/libgpg-error.dylib lib/libgpg-error.0.dylib
 lib/libgthread-2.0.dylib lib/libgthread-2.0.0.dylib
 lib/libgtk-4.dylib lib/libgtk-4.1.dylib
-lib/libgsk-4.dylib lib/libgsk-4.1.dylib
 lib/libguile-3.0.dylib lib/libguile-3.0.1.dylib
 lib/libgwengui-gtk4.dylib lib/libgwengui-gtk4.79.dylib
 lib/libgwenhywfar.dylib lib/libgwenhywfar.79.dylib
@@ -112,20 +108,14 @@ lib/libpixman-1.dylib lib/libpixman-1.0.dylib
 lib/libpkgconf.dylib lib/libpkgconf.7.dylib
 lib/libpng16.dylib lib/libpng16.16.dylib
 lib/libpq.dylib lib/libpq.5.dylib
-lib/libproxy.dylib lib/libproxy.1.dylib
-lib/libproxy/libpxbackend-1.0.dylib
-lib/libpsl.dylib lib/libpsl.5.dylib
 lib/libpython3.14.dylib
 lib/librsvg-2.dylib lib/librsvg-2.2.dylib
-lib/libsharpyuv.dylib lib/libsharpyuv.0.dylib
 lib/libsqlite3.dylib lib/libsqlite3.0.dylib lib/libsqlite3.3.53.0.dylib
 lib/libssl.dylib lib/libssl.3.dylib
 lib/libtasn1.dylib lib/libtasn1.6.dylib
 lib/libtextstyle.dylib lib/libtextstyle.0.dylib
 lib/libtiff.dylib lib/libtiff.6.dylib lib/libtiff.6.2.0.dylib
 lib/libunistring.dylib lib/libunistring.5.dylib
-lib/libwebp.dylib lib/libwebp.7.dylib
-lib/libwebpdemux.dylib lib/libwebpdemux.2.dylib
 lib/libxml2.dylib lib/libxml2.16.dylib
 lib/libxslt.dylib lib/libxslt.1.dylib
 lib/libxmlsec1.dylib lib/libxmlsec1.1.dylib
@@ -158,7 +148,6 @@ include/pango-1.0/
 include/pixman-1
 include/python3.14/
 include/unicode/
-include/webp/
 share/cmake-4.3/
 share/gettext/
 share/gettext-1.0/
