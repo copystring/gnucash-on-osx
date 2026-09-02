@@ -45,11 +45,30 @@ clean_directory()
 
 verify_gtk4_dependencies()
 {
+    local cflags
+    local cflag
+    local include_path
+    local -a include_flags=()
+
     if [ "${VERIFY_GTK4:-0}" != 1 ]; then
         return
     fi
     "$INST_DIR/bin/pkgconf" --atleast-version=4.14 gtk4
     "$INST_DIR/bin/pkgconf" --exists gtk4-macos gwengui-gtk4 aqbanking
+    cflags="$("$INST_DIR/bin/pkgconf" --cflags-only-I gtk4 gtk4-macos gwengui-gtk4 aqbanking)" || return 1
+    read -r -a include_flags <<< "$cflags"
+    for cflag in "${include_flags[@]}"
+    do
+        case "$cflag" in
+            -I"$INST_DIR"/*)
+                include_path="${cflag#-I}"
+                if [ ! -d "$include_path" ]; then
+                    echo "Missing GTK4 pkg-config include directory: $include_path" >&2
+                    return 1
+                fi
+                ;;
+        esac
+    done
 }
 
 reset_from_tarball()
