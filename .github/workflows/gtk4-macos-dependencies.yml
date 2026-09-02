@@ -57,8 +57,17 @@ jobs:
         run: |
           "$JHBUILD" bootstrap-gtk-osx
 
-      - name: Build Python tooling
+      - name: Build tooling
+        env:
+          CARGO_C_URL: https://github.com/lu-zero/cargo-c/releases/download/v0.10.23/cargo-c-macos.zip
+          CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
         run: |
+          cargo_c_archive="$RUNNER_TEMP/cargo-c-macos.zip"
+          curl --fail --location --show-error \
+            "$CARGO_C_URL" --output "$cargo_c_archive"
+          echo "$CARGO_C_SHA256  $cargo_c_archive" | shasum -a 256 -c -
+          ditto -x -k "$cargo_c_archive" "$HOME/.cargo/bin"
+          cargo-cbuild --version
           "$JHBUILD" build pygments
 
       - name: Build GTK4 dependencies
