@@ -26,6 +26,9 @@ jobs:
       PREFIX: /Users/runner/gnucash
       JHBUILD: /Users/runner/.new_local/bin/jhbuild
       MODULESET: ${{ github.workspace }}/gnucash-on-osx/modulesets/gnucash.modules
+      GTK_OSX_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
+      CARGO_C_URL: https://github.com/lu-zero/cargo-c/releases/download/v0.10.23/cargo-c-macos.zip
+      CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
     steps:
       - name: Checkout gnucash-on-osx
         uses: actions/checkout@v6
@@ -39,40 +42,99 @@ jobs:
           ref: ${{ inputs.gnucash_ref || 'feature/gtk4-migration-updated' }}
           path: gnucash-source
 
+      - name: Fingerprint macOS toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          {
+            sw_vers -productVersion
+            xcodebuild -version
+            xcrun --sdk macosx --show-sdk-version
+            uname -m
+          } | shasum -a 256 | awk '{ print "fingerprint=" $1 }' >> "$GITHUB_OUTPUT"
+
+      - name: Restore validated GTK4 dependencies
+        id: gtk4-dependencies-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            /Users/runner/.new_local
+            /Users/runner/gnucash/inst
+            /Users/runner/gnucash/src/googletest-1.17.0
+          key: gtk4-jhbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ env.GTK_OSX_REF }}-${{ env.CARGO_C_SHA256 }}-${{ hashFiles('gnucash-on-osx/jhbuildrc-custom', 'gnucash-on-osx/modulesets/gnucash.modules', 'gnucash-on-osx/patches/**') }}
+
       - name: Install GTK-OSX build environment
-        env:
-          GTK_OSX_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         run: |
           brew install perl-xml-parser
           perl -MXML::Parser -e 1
-          curl --fail --location --show-error \
+          curl --fail --location --show-error --retry 5 --retry-all-errors \
+            --retry-delay 5 --connect-timeout 30 \
             "https://raw.githubusercontent.com/GNOME/gtk-osx/$GTK_OSX_REF/gtk-osx-setup.sh" \
             --output "$RUNNER_TEMP/gtk-osx-setup.sh"
           bash "$RUNNER_TEMP/gtk-osx-setup.sh"
+
+      - name: Configure GTK-OSX build environment
+        run: |
+          test -x "$JHBUILD"
+          mkdir -p "$HOME/.config"
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         run: |
-          "$JHBUILD" bootstrap-gtk-osx
+          for attempt in 1 2 3
+          do
+            if "$JHBUILD" --no-interact --exit-on-error bootstrap-gtk-osx; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "GTK-OSX bootstrap failed; retrying after a transient-error delay" >&2
+            sleep $((attempt * 30))
+          done
 
       - name: Build tooling
-        env:
-          CARGO_C_URL: https://github.com/lu-zero/cargo-c/releases/download/v0.10.23/cargo-c-macos.zip
-          CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         run: |
           cargo_c_archive="$RUNNER_TEMP/cargo-c-macos.zip"
-          curl --fail --location --show-error \
+          curl --fail --location --show-error --retry 5 --retry-all-errors \
+            --retry-delay 5 --connect-timeout 30 \
             "$CARGO_C_URL" --output "$cargo_c_archive"
           echo "$CARGO_C_SHA256  $cargo_c_archive" | shasum -a 256 -c -
           ditto -x -k "$cargo_c_archive" "$HOME/.cargo/bin"
           cargo-cbuild --version
-          "$JHBUILD" build pygments
+          for attempt in 1 2 3
+          do
+            if "$JHBUILD" --no-interact --exit-on-error update pygments; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Tooling download failed; retrying after a transient-error delay" >&2
+            sleep $((attempt * 30))
+          done
+          "$JHBUILD" --no-interact --exit-on-error build --no-network pygments
 
       - name: Build GTK4 dependencies
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         run: |
-          "$JHBUILD" build meta-gnucash-gtk4-dependencies
+          for attempt in 1 2 3
+          do
+            if "$JHBUILD" --no-interact --exit-on-error update meta-gnucash-gtk4-dependencies; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "GTK4 dependency download failed; retrying after a transient-error delay" >&2
+            sleep $((attempt * 30))
+          done
+          "$JHBUILD" --no-interact --exit-on-error build --no-network meta-gnucash-gtk4-dependencies
 
       - name: Verify GTK4 dependency contract
         run: |
@@ -81,6 +143,16 @@ jobs:
           "$JHBUILD" run \
             "$ROOT_DIR/inst/bin/pkgconf" --exists \
             gtk4-macos gwengui-gtk4 aqbanking
+
+      - name: Cache validated GTK4 dependencies
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            /Users/runner/.new_local
+            /Users/runner/gnucash/inst
+            /Users/runner/gnucash/src/googletest-1.17.0
+          key: ${{ steps.gtk4-dependencies-cache.outputs.cache-primary-key }}
 
       - name: Assemble archive and test GnuCash
         env:

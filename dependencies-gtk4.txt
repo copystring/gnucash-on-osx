@@ -112,7 +112,7 @@ lib/libpkgconf.dylib lib/libpkgconf.7.dylib
 lib/libpng16.dylib lib/libpng16.16.dylib
 lib/libpq.dylib lib/libpq.5.dylib
 lib/libpython3.14.dylib
-lib/libreadline.dylib lib/libreadline.8.dylib
+lib/libreadline.dylib lib/libreadline.8.dylib lib/libreadline.8.3.dylib
 lib/librsvg-2.dylib lib/librsvg-2.2.dylib
 lib/libsqlite3.dylib lib/libsqlite3.0.dylib lib/libsqlite3.3.53.0.dylib
 lib/libssl.dylib lib/libssl.3.dylib
