@@ -27,6 +27,7 @@ jobs:
       JHBUILD: /Users/runner/.new_local/bin/jhbuild
       MODULESET: ${{ github.workspace }}/gnucash-on-osx/modulesets/gnucash.modules
       GTK_OSX_REF: 0889e034206c1019e408cff7e9f426fccd5e034e
+      JHBUILD_REF: 16e05af9b58b9e7433ce7417ecd8915beba59133
       CARGO_C_URL: https://github.com/lu-zero/cargo-c/releases/download/v0.10.23/cargo-c-macos.zip
       CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
     steps:
@@ -59,12 +60,24 @@ jobs:
         with:
           path: |
             /Users/runner/.new_local
+            /Users/runner/Source/jhbuild
+            /Users/runner/gnucash/inst
+            /Users/runner/gnucash/src/googletest-1.17.0
+          key: gtk4-jhbuild-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ env.GTK_OSX_REF }}-${{ env.JHBUILD_REF }}-${{ env.CARGO_C_SHA256 }}-${{ hashFiles('gnucash-on-osx/jhbuildrc-custom', 'gnucash-on-osx/modulesets/gnucash.modules', 'gnucash-on-osx/patches/**') }}
+
+      - name: Restore legacy validated GTK4 dependencies
+        id: gtk4-dependencies-cache-legacy
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            /Users/runner/.new_local
             /Users/runner/gnucash/inst
             /Users/runner/gnucash/src/googletest-1.17.0
           key: gtk4-jhbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ env.GTK_OSX_REF }}-${{ env.CARGO_C_SHA256 }}-${{ hashFiles('gnucash-on-osx/jhbuildrc-custom', 'gnucash-on-osx/modulesets/gnucash.modules', 'gnucash-on-osx/patches/**') }}
 
       - name: Install GTK-OSX build environment
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           brew install perl-xml-parser
           perl -MXML::Parser -e 1
@@ -74,16 +87,43 @@ jobs:
             --output "$RUNNER_TEMP/gtk-osx-setup.sh"
           bash "$RUNNER_TEMP/gtk-osx-setup.sh"
 
+      - name: Pin JHBuild source
+        run: |
+          set -euo pipefail
+          jhbuild_source="$HOME/Source/jhbuild"
+          if [ "$(git -C "$jhbuild_source" rev-parse HEAD 2>/dev/null || true)" != "$JHBUILD_REF" ]; then
+            mkdir -p "$(dirname "$jhbuild_source")"
+            if [ ! -d "$jhbuild_source/.git" ]; then
+              git init "$jhbuild_source"
+              git -C "$jhbuild_source" remote add origin \
+                https://gitlab.gnome.org/GNOME/jhbuild.git
+            fi
+            for attempt in 1 2 3
+            do
+              if git -C "$jhbuild_source" fetch --depth=1 origin "$JHBUILD_REF"; then
+                break
+              fi
+              if [ "$attempt" -eq 3 ]; then
+                exit 1
+              fi
+              echo "JHBuild source download failed; retrying after a transient-error delay" >&2
+              sleep $((attempt * 30))
+            done
+            git -C "$jhbuild_source" checkout --detach "$JHBUILD_REF"
+          fi
+          test "$(git -C "$jhbuild_source" rev-parse HEAD)" = "$JHBUILD_REF"
+
       - name: Configure GTK-OSX build environment
         run: |
           test -x "$JHBUILD"
+          "$JHBUILD" --version
           mkdir -p "$HOME/.config"
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           for attempt in 1 2 3
           do
@@ -98,7 +138,7 @@ jobs:
           done
 
       - name: Build tooling
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           cargo_c_archive="$RUNNER_TEMP/cargo-c-macos.zip"
           curl --fail --location --show-error --retry 5 --retry-all-errors \
@@ -121,7 +161,7 @@ jobs:
           "$JHBUILD" --no-interact --exit-on-error build --no-network pygments
 
       - name: Build GTK4 dependencies
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           for attempt in 1 2 3
           do
@@ -150,6 +190,7 @@ jobs:
         with:
           path: |
             /Users/runner/.new_local
+            /Users/runner/Source/jhbuild
             /Users/runner/gnucash/inst
             /Users/runner/gnucash/src/googletest-1.17.0
           key: ${{ steps.gtk4-dependencies-cache.outputs.cache-primary-key }}
