@@ -127,7 +127,14 @@ jobs:
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
           "$JHBUILD" help >/dev/null
-          "$JHBUILD" run bash -c 'test "$JHBUILD_PREFIX" = "$ROOT_DIR/inst"'
+          "$JHBUILD" run bash -c '
+            expected_prefix=$1
+            if [ "${JHBUILD_PREFIX:-}" != "$expected_prefix" ]; then
+              printf "Expected JHBUILD_PREFIX=%s, got %s\n" \
+                "$expected_prefix" "${JHBUILD_PREFIX:-<unset>}" >&2
+              exit 1
+            fi
+          ' bash "$ROOT_DIR/inst"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
