@@ -116,7 +116,7 @@ jobs:
       - name: Configure GTK-OSX build environment
         run: |
           test -x "$JHBUILD"
-          "$JHBUILD" --version
+          "$JHBUILD" help >/dev/null
           mkdir -p "$HOME/.config"
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
