@@ -115,11 +115,19 @@ jobs:
 
       - name: Configure GTK-OSX build environment
         run: |
+          set -euo pipefail
           test -x "$JHBUILD"
-          "$JHBUILD" help >/dev/null
           mkdir -p "$HOME/.config"
+          curl --fail --location --show-error --retry 5 --retry-all-errors \
+            --retry-delay 5 --connect-timeout 30 \
+            "https://raw.githubusercontent.com/GNOME/gtk-osx/$GTK_OSX_REF/jhbuildrc-gtk-osx" \
+            --output "$RUNNER_TEMP/jhbuildrc-gtk-osx"
+          install -m 600 "$RUNNER_TEMP/jhbuildrc-gtk-osx" \
+            "$HOME/.config/jhbuildrc"
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
+          "$JHBUILD" help >/dev/null
+          "$JHBUILD" run bash -c 'test "$JHBUILD_PREFIX" = "$ROOT_DIR/inst"'
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
