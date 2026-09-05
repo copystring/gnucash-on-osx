@@ -156,6 +156,7 @@ include/python3.14/
 include/unicode/
 share/aqbanking/
 share/chipcard/
+share/fontconfig/
 share/cmake-4.3/
 share/glib-2.0/
 share/gettext/

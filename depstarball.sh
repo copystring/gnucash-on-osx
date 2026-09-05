@@ -29,10 +29,12 @@ if { [ -f "$DEPS_FILE" ] && grep -Eq '^etc(/|$)' "$DEPS_FILE"; } ||
     ARCHIVE_ROOTS=(bin etc include lib share)
 fi
 
-mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
-if [ ! -d "$SRC_DIR/.git" ]; then
-    mkdir -p "$(dirname -- "$SRC_DIR")"
-    git clone "$SRC_URI" "$SRC_DIR"
+if [ "${1:-}" != verify-symlinks ]; then
+    mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
+    if [ ! -d "$SRC_DIR/.git" ]; then
+        mkdir -p "$(dirname -- "$SRC_DIR")"
+        git clone "$SRC_URI" "$SRC_DIR"
+    fi
 fi
 
 clean_directory()
@@ -128,6 +130,7 @@ verify_gtk4_archive_data()
         etc/fonts
         share/aqbanking
         share/chipcard
+        share/fontconfig
         share/glib-2.0
         share/gwenhywfar
         share/icons
@@ -146,6 +149,77 @@ verify_gtk4_archive_data()
             return 1
         fi
     done
+}
+
+verify_gtk4_archive_symlinks()
+{
+    local python="${ARCHIVE_VERIFY_PYTHON:-$INST_DIR/bin/python3}"
+
+    if [ "${VERIFY_GTK4:-0}" != 1 ]; then
+        return
+    fi
+    if [ ! -x "$python" ]; then
+        echo "Python 3 is required to verify GTK4 archive symlinks: $python" >&2
+        return 1
+    fi
+
+    "$python" - "$TAR_DIR" <<'PY'
+import errno
+import os
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1]).resolve(strict=True)
+links = []
+def raise_walk_error(error):
+    raise error
+
+try:
+    for directory, directories, files in os.walk(
+            root, followlinks=False, onerror=raise_walk_error):
+        for name in directories + files:
+            path = Path(directory, name)
+            if path.is_symlink():
+                links.append(path)
+except OSError as error:
+    print(f"Cannot inspect GTK4 dependency archive symlinks: {error}", file=sys.stderr)
+    sys.exit(1)
+
+errors = []
+for path in links:
+    relative_path = path.relative_to(root)
+    target = os.readlink(path)
+    if os.path.isabs(target):
+        errors.append(("absolute target", relative_path, target))
+        continue
+    try:
+        resolved_target = path.resolve(strict=True)
+    except FileNotFoundError:
+        errors.append(("missing target", relative_path, target))
+        continue
+    except RuntimeError:
+        errors.append(("symlink loop", relative_path, target))
+        continue
+    except OSError as error:
+        if error.errno == errno.ELOOP:
+            errors.append(("symlink loop", relative_path, target))
+        else:
+            errors.append((f"cannot resolve target: {error}", relative_path, target))
+        continue
+
+    try:
+        resolved_target.relative_to(root)
+    except ValueError:
+        errors.append(("target escapes archive", relative_path, target))
+
+if errors:
+    print("GTK4 dependency archive has invalid symlinks:", file=sys.stderr)
+    for error, path, target in errors:
+        print(f"{error}: {path} -> {target}", file=sys.stderr)
+    sys.exit(1)
+
+print(f"Verified {len(links)} GTK4 dependency archive symlinks")
+PY
 }
 
 reset_from_tarball()
@@ -231,6 +305,7 @@ test_tarball()
     tar -xf "$COMP_TARBALL"
     popd
     verify_gtk4_archive_data
+    verify_gtk4_archive_symlinks
     verify_macho_closure
     enable_tarball
     verify_gtk4_dependencies
@@ -267,12 +342,15 @@ case "${1:-}" in
     build)
         test_tarball
         ;;
+    verify-symlinks)
+        verify_gtk4_archive_symlinks
+        ;;
     "")
         create_tarball
         test_tarball
         ;;
     *)
-        echo "Usage: $0 [use_tarball|restore|build]" >&2
+        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks]" >&2
         exit 2
         ;;
 esac

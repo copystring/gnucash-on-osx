@@ -38,7 +38,7 @@ jobs:
       - name: Initialize build paths
         run: |
           set -euo pipefail
-          build_root="$RUNNER_TEMP/gnucash-bundle-preflight"
+          build_root="$HOME/gnucash"
           {
             printf 'ROOT_DIR=%s\n' "$build_root"
             printf 'PREFIX=%s\n' "$build_root"
