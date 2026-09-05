@@ -203,6 +203,77 @@ jobs:
           fi
           trap - EXIT
 
+      - name: Package smoke-tested GTK4 app bundle
+        run: |
+          set -euo pipefail
+          source_app="$RUNNER_TEMP/gnucash-bundle-home/.Gnucash.app"
+          staging="$(mktemp -d "$RUNNER_TEMP/gnucash-bundle-artifact.XXXXXX")"
+          validation="$(mktemp -d "$RUNNER_TEMP/gnucash-bundle-validation.XXXXXX")"
+          staged_app="$staging/Gnucash.app"
+          restored_app="$validation/Gnucash.app"
+          archive="$RUNNER_TEMP/gnucash-gtk4-macos-app.zip"
+
+          test -d "$source_app"
+          ditto --rsrc --extattr --acl "$source_app" "$staged_app"
+          ditto -c -k --rsrc --extattr --acl --sequesterRsrc --keepParent \
+            "$staged_app" "$archive"
+          test -s "$archive"
+
+          ditto -x -k --rsrc --extattr --acl "$archive" "$validation"
+          test -d "$restored_app"
+          test -x "$restored_app/Contents/MacOS/Gnucash"
+          test -f "$restored_app/Contents/Resources/etc/gtk-4.0/settings.ini"
+
+          staged_links="$validation/staged-symlinks"
+          restored_links="$validation/restored-symlinks"
+          find "$staged_app" -type l -print0 > "$staged_links"
+          find "$restored_app" -type l -print0 > "$restored_links"
+
+          while IFS= read -r -d '' link; do
+            relative="${link#"$staged_app"/}"
+            restored_link="$restored_app/$relative"
+            test -L "$restored_link"
+            test "$(readlink "$link")" = "$(readlink "$restored_link")"
+          done < "$staged_links"
+
+          restored_root="$(cd "$restored_app" && pwd -P)"
+          while IFS= read -r -d '' link; do
+            relative="${link#"$restored_app"/}"
+            test -L "$staged_app/$relative"
+            target="$(readlink "$link")"
+            case "$target" in
+              /*)
+                echo "Absolute symlink in app bundle: $relative -> $target" >&2
+                exit 1
+                ;;
+            esac
+            if ! test -e "$link"; then
+              echo "Missing or unresolvable symlink target: $relative -> $target" >&2
+              exit 1
+            fi
+            if ! resolved="$(perl -MCwd=abs_path -e \
+              'my $path = abs_path($ARGV[0]); exit 1 unless defined $path; print $path' \
+              "$link")"; then
+              echo "Dangling or cyclic symlink in app bundle: $relative -> $target" >&2
+              exit 1
+            fi
+            case "$resolved" in
+              "$restored_root"|"$restored_root"/*) ;;
+              *)
+                echo "Symlink escapes app bundle: $relative -> $target" >&2
+                exit 1
+                ;;
+            esac
+          done < "$restored_links"
+
+      - name: Upload smoke-tested GTK4 app bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-gtk4-app-bundle
+          path: ${{ runner.temp }}/gnucash-gtk4-macos-app.zip
+          if-no-files-found: error
+          compression-level: 0
+
       - name: Upload bundle diagnostics
         if: always()
         uses: actions/upload-artifact@v7
