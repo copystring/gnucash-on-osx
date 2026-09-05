@@ -11,6 +11,7 @@ bin/chipcard-tool
 bin/cmake
 bin/ctest
 bin/gettext
+bin/gdk-pixbuf-query-loaders
 bin/gio-querymodules
 bin/glib-compile-resources
 bin/glib-compile-schemas

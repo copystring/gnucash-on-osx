@@ -43,8 +43,10 @@ jobs:
           ref: ${{ inputs.gnucash_ref || 'feature/gtk4-migration-updated' }}
           path: gnucash-source
 
-      - name: Test GTK4 archive icon-theme closure
-        run: bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-depstarball-icon-themes.sh"
+      - name: Test GTK4 archive contracts
+        run: |
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-depstarball-icon-themes.sh"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-depstarball-bundle-inputs.sh"
 
       - name: Fingerprint macOS toolchain
         id: toolchain

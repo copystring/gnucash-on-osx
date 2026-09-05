@@ -31,7 +31,7 @@ fi
 
 VERIFY_ONLY_MODE=
 case "${1:-}" in
-    verify-symlinks|verify-icon-themes) VERIFY_ONLY_MODE="$1" ;;
+    verify-symlinks|verify-icon-themes|verify-bundle-inputs) VERIFY_ONLY_MODE="$1" ;;
 esac
 if [ -z "$VERIFY_ONLY_MODE" ]; then
     mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
@@ -153,6 +153,61 @@ verify_gtk4_archive_data()
             return 1
         fi
     done
+}
+
+verify_gtk4_archive_bundle_inputs()
+{
+    local query_tool="$TAR_DIR/bin/gdk-pixbuf-query-loaders"
+    local pixbuf_version
+    local loader_dir
+    local loader
+    local valid_loader=
+    local -a loaders=()
+
+    if [ "${VERIFY_GTK4:-0}" != 1 ]; then
+        return
+    fi
+    if [ ! -f "$query_tool" ]; then
+        echo "GTK4 dependency archive is missing required bundle tool: bin/gdk-pixbuf-query-loaders" >&2
+        return 1
+    fi
+    if [ ! -x "$query_tool" ]; then
+        echo "GTK4 dependency archive bundle tool is not executable: bin/gdk-pixbuf-query-loaders" >&2
+        return 1
+    fi
+    if ! pixbuf_version="$(PKG_CONFIG_DIR= PKG_CONFIG_PATH= \
+        PKG_CONFIG_LIBDIR="$TAR_DIR/lib/pkgconfig:$TAR_DIR/share/pkgconfig" \
+        "$INST_DIR/bin/pkgconf" \
+        --variable=gdk_pixbuf_binary_version gdk-pixbuf-2.0)"; then
+        echo "Cannot determine the GDK Pixbuf loader version for the GTK4 bundle archive" >&2
+        return 1
+    fi
+    case "$pixbuf_version" in
+        ""|*[!A-Za-z0-9._-]*)
+            echo "Invalid GDK Pixbuf loader version for the GTK4 bundle archive: $pixbuf_version" >&2
+            return 1
+            ;;
+    esac
+
+    loader_dir="$TAR_DIR/lib/gdk-pixbuf-2.0/$pixbuf_version/loaders"
+    if [ ! -d "$loader_dir" ]; then
+        echo "GTK4 dependency archive is missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/$pixbuf_version/loaders" >&2
+        return 1
+    fi
+    shopt -s nullglob
+    loaders=("$loader_dir"/*.so)
+    shopt -u nullglob
+    for loader in "${loaders[@]}"
+    do
+        if [ -f "$loader" ]; then
+            valid_loader=1
+            break
+        fi
+    done
+    if [ -z "$valid_loader" ]; then
+        echo "GTK4 dependency archive is missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/$pixbuf_version/loaders/*.so" >&2
+        return 1
+    fi
 }
 
 verify_gtk4_archive_symlinks()
@@ -394,6 +449,7 @@ test_tarball()
     tar -xf "$COMP_TARBALL"
     popd
     verify_gtk4_archive_data
+    verify_gtk4_archive_bundle_inputs
     verify_gtk4_archive_icon_themes
     verify_gtk4_archive_symlinks
     verify_macho_closure
@@ -424,6 +480,10 @@ case "$VERIFY_ONLY_MODE" in
         verify_gtk4_archive_icon_themes
         exit 0
         ;;
+    verify-bundle-inputs)
+        verify_gtk4_archive_bundle_inputs
+        exit 0
+        ;;
 esac
 
 trap reset_from_tarball EXIT
@@ -448,7 +508,7 @@ case "${1:-}" in
         test_tarball
         ;;
     *)
-        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks|verify-icon-themes]" >&2
+        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks|verify-icon-themes|verify-bundle-inputs]" >&2
         exit 2
         ;;
 esac
