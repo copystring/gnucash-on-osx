@@ -80,6 +80,18 @@ run_verifier()
         bash "$SCRIPT_DIR/depstarball.sh" verify-bundle-inputs
 }
 
+assert_log_contains()
+{
+    local pattern="$1"
+    local log="$2"
+
+    if ! grep -q "$pattern" "$log"; then
+        echo "Expected diagnostic not found in $log:" >&2
+        cat "$log" >&2
+        return 1
+    fi
+}
+
 valid="$test_root/valid"
 write_valid_archive "$valid"
 run_verifier "$valid"
@@ -91,7 +103,7 @@ if run_verifier "$missing_tool" > "$test_root/missing-tool.log" 2>&1; then
     echo 'Missing GDK Pixbuf query tool unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'missing required bundle tool: bin/gdk-pixbuf-query-loaders' \
+assert_log_contains 'missing required bundle tool: bin/gdk-pixbuf-query-loaders' \
     "$test_root/missing-tool.log"
 
 non_executable_tool="$test_root/non-executable-tool"
@@ -102,7 +114,7 @@ if run_verifier "$non_executable_tool" > "$test_root/non-executable-tool.log" 2>
     echo 'Non-executable GDK Pixbuf query tool unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'bundle tool is not executable: bin/gdk-pixbuf-query-loaders' \
+assert_log_contains 'bundle tool is not executable: bin/gdk-pixbuf-query-loaders' \
     "$test_root/non-executable-tool.log"
 
 missing_loaders="$test_root/missing-loaders"
@@ -112,7 +124,7 @@ if run_verifier "$missing_loaders" > "$test_root/missing-loaders.log" 2>&1; then
     echo 'Missing GDK Pixbuf loader modules unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/2.10.0/loaders/\*.so' \
+assert_log_contains 'missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/2.10.0/loaders/\*.so' \
     "$test_root/missing-loaders.log"
 
 missing_loader_dir="$test_root/missing-loader-dir"
@@ -122,7 +134,7 @@ if run_verifier "$missing_loader_dir" > "$test_root/missing-loader-dir.log" 2>&1
     echo 'Missing GDK Pixbuf loader directory unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/2.10.0/loaders' \
+assert_log_contains 'missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/2.10.0/loaders' \
     "$test_root/missing-loader-dir.log"
 
 missing_pc="$test_root/missing-pc"
@@ -132,7 +144,8 @@ if run_verifier "$missing_pc" > "$test_root/missing-pc.log" 2>&1; then
     echo 'Missing archived GDK Pixbuf pkg-config data unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'Cannot determine the GDK Pixbuf loader version' "$test_root/missing-pc.log"
+assert_log_contains 'Cannot determine the GDK Pixbuf loader version' \
+    "$test_root/missing-pc.log"
 
 mismatched_pc="$test_root/mismatched-pc"
 write_valid_archive "$mismatched_pc"
@@ -146,7 +159,7 @@ if run_verifier "$mismatched_pc" > "$test_root/mismatched-pc.log" 2>&1; then
     echo 'Mismatched archived GDK Pixbuf pkg-config data unexpectedly passed.' >&2
     exit 1
 fi
-grep -q 'missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/9.9.9/loaders' \
+assert_log_contains 'missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/9.9.9/loaders' \
     "$test_root/mismatched-pc.log"
 
 directory_loader="$test_root/directory-loader"
@@ -157,7 +170,7 @@ if run_verifier "$directory_loader" > "$test_root/directory-loader.log" 2>&1; th
     echo 'Directory with an .so suffix unexpectedly passed as a loader module.' >&2
     exit 1
 fi
-grep -q 'missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/2.10.0/loaders/\*.so' \
+assert_log_contains 'missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/2.10.0/loaders/\*.so' \
     "$test_root/directory-loader.log"
 
 echo 'GTK4 archive bundle-input fixtures passed.'

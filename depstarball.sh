@@ -162,7 +162,6 @@ verify_gtk4_archive_bundle_inputs()
     local loader_dir
     local loader
     local valid_loader=
-    local -a loaders=()
 
     if [ "${VERIFY_GTK4:-0}" != 1 ]; then
         return
@@ -194,10 +193,7 @@ verify_gtk4_archive_bundle_inputs()
         echo "GTK4 dependency archive is missing GDK Pixbuf loader directory: lib/gdk-pixbuf-2.0/$pixbuf_version/loaders" >&2
         return 1
     fi
-    shopt -s nullglob
-    loaders=("$loader_dir"/*.so)
-    shopt -u nullglob
-    for loader in "${loaders[@]}"
+    for loader in "$loader_dir"/*.so
     do
         if [ -f "$loader" ]; then
             valid_loader=1
