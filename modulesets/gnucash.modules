@@ -30,6 +30,8 @@
               type="tarball" />
   <repository type="tarball" name="download.gnome.org"
               href="https://download.gnome.org/sources/" />
+  <repository type="tarball" name="hicolor"
+              href="https://icon-theme.freedesktop.org/releases/" />
 
  <include href="https://raw.githubusercontent.com/GNOME/gtk-osx/0889e034206c1019e408cff7e9f426fccd5e034e/modulesets-stable/gtk-osx.modules"/>
  <!--include href="/Users/john/Development/GTK-OSX/gtk-osx-build/modulesets-stable/gtk-osx.modules"/-->
@@ -61,6 +63,19 @@
     <dependencies>
       <dep package="glib" />
     </dependencies>
+  </meson>
+
+  <meson id="adwaita-icon-theme-legacy">
+    <branch repo="download.gnome.org"
+            module="adwaita-icon-theme-legacy/46/adwaita-icon-theme-legacy-46.2.tar.xz"
+            version="46.2"
+            hash="sha256:548480f58589a54b72d18833b755b15ffbd567e3187249d74e2e1f8f99f22fb4" />
+  </meson>
+  <meson id="hicolor-icon-theme-gtk4">
+    <branch repo="hicolor"
+            module="hicolor-icon-theme-0.18.tar.xz"
+            version="0.18"
+            hash="sha256:db0e50a80aa3bf64bb45cbca5cf9f75efd9348cf2ac690b907435238c3cf81d7" />
   </meson>
   <autotools id="libchipcard" autogen-sh="autoreconf" autogenargs="--enable-local-install">
     <branch module="382/libchipcard-5.1.6.tar.gz" version="5.1.6"
@@ -374,6 +389,8 @@
       <dep package="meta-gtk-osx-bootstrap"/>
       <dep package="gtk-4"/>
       <dep package="adwaita-icon-theme"/>
+      <dep package="adwaita-icon-theme-legacy"/>
+      <dep package="hicolor-icon-theme-gtk4"/>
       <dep package="pgsql"/>
       <dep package="shared-mime-info-2.2"/>
       <dep package="sqlite"/>

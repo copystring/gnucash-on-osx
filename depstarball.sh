@@ -29,7 +29,11 @@ if { [ -f "$DEPS_FILE" ] && grep -Eq '^etc(/|$)' "$DEPS_FILE"; } ||
     ARCHIVE_ROOTS=(bin etc include lib share)
 fi
 
-if [ "${1:-}" != verify-symlinks ]; then
+VERIFY_ONLY_MODE=
+case "${1:-}" in
+    verify-symlinks|verify-icon-themes) VERIFY_ONLY_MODE="$1" ;;
+esac
+if [ -z "$VERIFY_ONLY_MODE" ]; then
     mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
     if [ ! -d "$SRC_DIR/.git" ]; then
         mkdir -p "$(dirname -- "$SRC_DIR")"
@@ -222,6 +226,91 @@ print(f"Verified {len(links)} GTK4 dependency archive symlinks")
 PY
 }
 
+verify_gtk4_archive_icon_themes()
+{
+    local python="${ARCHIVE_VERIFY_PYTHON:-$INST_DIR/bin/python3}"
+    local bundle_file="${BUNDLE_FILE:-$SCRIPT_DIR/gnucash-bundler/gnucash-unstable.bundle}"
+
+    if [ "${VERIFY_GTK4:-0}" != 1 ]; then
+        return
+    fi
+    if [ ! -x "$python" ]; then
+        echo "Python 3 is required to verify GTK4 archive icon themes: $python" >&2
+        return 1
+    fi
+    if [ ! -f "$bundle_file" ]; then
+        echo "GTK4 bundle definition is missing: $bundle_file" >&2
+        return 1
+    fi
+
+    "$python" - "$TAR_DIR" "$bundle_file" <<'PY'
+import configparser
+from pathlib import Path
+import sys
+import xml.etree.ElementTree as ET
+
+root = Path(sys.argv[1]).resolve(strict=True)
+bundle_file = Path(sys.argv[2]).resolve(strict=True)
+
+try:
+    bundle = ET.parse(bundle_file)
+except (ET.ParseError, OSError) as error:
+    print(f"Cannot read GTK4 bundle icon themes: {error}", file=sys.stderr)
+    sys.exit(1)
+
+requested = []
+for element in bundle.getroot().iter("icon-theme"):
+    if element.text and element.text.strip():
+        requested.append(element.text.strip())
+if not requested:
+    print(f"GTK4 bundle has no icon themes: {bundle_file}", file=sys.stderr)
+    sys.exit(1)
+
+pending = [(theme, "bundle definition") for theme in requested]
+checked = set()
+errors = []
+while pending:
+    theme, inherited_by = pending.pop(0)
+    if theme in checked:
+        continue
+    checked.add(theme)
+    if theme in (".", "..") or Path(theme).name != theme or "/" in theme or "\\" in theme:
+        errors.append(f"invalid icon theme name inherited by {inherited_by}: {theme}")
+        continue
+
+    index_file = root / "share" / "icons" / theme / "index.theme"
+    if not index_file.is_file():
+        errors.append(f"missing icon theme index inherited by {inherited_by}: share/icons/{theme}/index.theme")
+        continue
+
+    parser = configparser.ConfigParser(interpolation=None, strict=False)
+    parser.optionxform = str
+    try:
+        with index_file.open(encoding="utf-8") as stream:
+            parser.read_file(stream)
+        if not parser.has_section("Icon Theme"):
+            raise configparser.Error("missing [Icon Theme] section")
+        for required_key in ("Name", "Directories"):
+            if not parser.get("Icon Theme", required_key, fallback="").strip():
+                raise configparser.Error(f"missing required {required_key} entry in [Icon Theme]")
+        inherits = parser.get("Icon Theme", "Inherits", fallback="")
+    except (configparser.Error, OSError, UnicodeError) as error:
+        errors.append(f"cannot read share/icons/{theme}/index.theme: {error}")
+        continue
+    for inherited in (name.strip() for name in inherits.split(",")):
+        if inherited:
+            pending.append((inherited, theme))
+
+if errors:
+    print("GTK4 dependency archive has an incomplete icon-theme closure:", file=sys.stderr)
+    for error in errors:
+        print(error, file=sys.stderr)
+    sys.exit(1)
+
+print(f"Verified {len(checked)} GTK4 archive icon themes: {', '.join(sorted(checked))}")
+PY
+}
+
 reset_from_tarball()
 {
     local entry
@@ -305,6 +394,7 @@ test_tarball()
     tar -xf "$COMP_TARBALL"
     popd
     verify_gtk4_archive_data
+    verify_gtk4_archive_icon_themes
     verify_gtk4_archive_symlinks
     verify_macho_closure
     enable_tarball
@@ -325,6 +415,17 @@ test_tarball()
     reset_from_tarball
 }
 
+case "$VERIFY_ONLY_MODE" in
+    verify-symlinks)
+        verify_gtk4_archive_symlinks
+        exit 0
+        ;;
+    verify-icon-themes)
+        verify_gtk4_archive_icon_themes
+        exit 0
+        ;;
+esac
+
 trap reset_from_tarball EXIT
 
 if [ -e "$ACTIVE_FILE" ] || [ -L "$INST_DIR/bin" ]; then
@@ -342,15 +443,12 @@ case "${1:-}" in
     build)
         test_tarball
         ;;
-    verify-symlinks)
-        verify_gtk4_archive_symlinks
-        ;;
     "")
         create_tarball
         test_tarball
         ;;
     *)
-        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks]" >&2
+        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks|verify-icon-themes]" >&2
         exit 2
         ;;
 esac
