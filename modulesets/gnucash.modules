@@ -91,9 +91,9 @@
 
   <autotools id="gwenhywfar-gtk4" autogen-sh="autoreconf"
 	     autogenargs="--with-guis='gtk4' --enable-local-install">
-    <branch module="copystring/gwenhywfar/archive/f9443bef3e866c1ff7598e47f958eb6488bf3203.tar.gz"
+    <branch module="copystring/gwenhywfar/archive/895f0959bf9ad54ea138f5a44ea9f3f6f8963a43.tar.gz"
             checkoutdir="gwenhywfar-5.14.1-gtk4" version="5.14.1"
-            hash="sha256:0cd6b70d28a6416fb64287bc1df0dd328a3fef136fc7431f9a7096c3a775d0e2"
+            hash="sha256:ad73b00755dd794e2081fb9fb8b84dd2d6dbb8a6025912a83040fd9e03fb4f12"
             repo="github-tarball" >
       <patch file="gwen-include-file.patch" strip="1"/>
       <patch file="gwen-macos-bundle-path.patch" strip="1"/>

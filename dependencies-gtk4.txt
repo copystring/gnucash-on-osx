@@ -73,7 +73,7 @@ lib/libgraphene-1.0.dylib lib/libgraphene-1.0.0.dylib
 lib/libgdk_pixbuf-2.0.dylib lib/libgdk_pixbuf-2.0.0.dylib
 lib/libgettextsrc.dylib lib/libgettextsrc-1.0.dylib
 lib/libgettextlib.dylib lib/libgettextlib-1.0.dylib
-lib/libgettextlib.dylib lib/libgettextpo.0.dylib
+lib/libgettextpo.dylib lib/libgettextpo.0.dylib
 lib/libgio-2.0.dylib lib/libgio-2.0.0.dylib
 lib/libglib-2.0.dylib lib/libglib-2.0.0.dylib
 lib/libgmodule-2.0.dylib lib/libgmodule-2.0.0.dylib
