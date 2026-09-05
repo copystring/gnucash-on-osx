@@ -23,6 +23,12 @@ GTEST_ROOT="${GTEST_ROOT:-$ROOT_DIR/src/googletest-1.17.0}"
 TARBALL="${TARBALL:-$HOME/gnucash-$GC_VERSION-mac-dependencies.tar}"
 COMP_TARBALL="$TARBALL.xz"
 
+ARCHIVE_ROOTS=(bin include lib share)
+if { [ -f "$DEPS_FILE" ] && grep -Eq '^etc(/|$)' "$DEPS_FILE"; } ||
+   [ -L "$INST_DIR/etc" ] || [ -e "$PARK_DIR/etc" ]; then
+    ARCHIVE_ROOTS=(bin etc include lib share)
+fi
+
 mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
 if [ ! -d "$SRC_DIR/.git" ]; then
     mkdir -p "$(dirname -- "$SRC_DIR")"
@@ -114,6 +120,34 @@ verify_macho_closure()
     rm -f "$missing_file"
 }
 
+verify_gtk4_archive_data()
+{
+    local required_path
+    local -a required_paths=(
+        etc/chipcard
+        etc/fonts
+        share/aqbanking
+        share/chipcard
+        share/glib-2.0
+        share/gwenhywfar
+        share/icons
+        share/libofx
+        share/locale
+        share/mime
+    )
+
+    if [ "${VERIFY_GTK4:-0}" != 1 ]; then
+        return
+    fi
+    for required_path in "${required_paths[@]}"
+    do
+        if [ ! -d "$TAR_DIR/$required_path" ]; then
+            echo "GTK4 dependency archive is missing required bundle data: $required_path" >&2
+            return 1
+        fi
+    done
+}
+
 reset_from_tarball()
 {
     local entry
@@ -121,7 +155,7 @@ reset_from_tarball()
     if [ ! -e "$ACTIVE_FILE" ] && [ ! -L "$INST_DIR/bin" ]; then
         return
     fi
-    for entry in bin include lib share
+    for entry in "${ARCHIVE_ROOTS[@]}"
     do
         if [ -L "$INST_DIR/$entry" ]; then
             rm "$INST_DIR/$entry"
@@ -140,7 +174,7 @@ enable_tarball()
 {
     local entry
 
-    for entry in bin include lib share
+    for entry in "${ARCHIVE_ROOTS[@]}"
     do
         if [ ! -d "$INST_DIR/$entry" ]; then
             echo "Missing installed dependency directory: $INST_DIR/$entry" >&2
@@ -154,7 +188,7 @@ enable_tarball()
     clean_directory "$PARK_DIR"
     : > "$ACTIVE_FILE"
     pushd "$INST_DIR"
-    for entry in bin include lib share
+    for entry in "${ARCHIVE_ROOTS[@]}"
     do
         mv "$entry" "$PARK_DIR"
         ln -s "$TAR_DIR/$entry" .
@@ -196,6 +230,7 @@ test_tarball()
     pushd "$TAR_DIR"
     tar -xf "$COMP_TARBALL"
     popd
+    verify_gtk4_archive_data
     verify_macho_closure
     enable_tarball
     verify_gtk4_dependencies
