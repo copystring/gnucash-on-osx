@@ -2,14 +2,19 @@
 
 set -euo pipefail
 
-if test "$#" -ne 1; then
-    echo "Usage: $0 APP_BUNDLE" >&2
+if test "$#" -ne 4; then
+    echo "Usage: $0 APP_BUNDLE CORE_VERSION BUNDLE_REVISION COPYRIGHT_YEAR" >&2
     exit 2
 fi
 
 app="$1"
+core_version="$2"
+bundle_revision="$3"
+copyright_year="$4"
 executable="$app/Contents/MacOS/Gnucash"
 settings="$app/Contents/Resources/etc/gtk-4.0/settings.ini"
+plist="$app/Contents/Info.plist"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
 
 if ! test -d "$app"; then
     echo "Missing macOS app bundle: $app" >&2
@@ -25,3 +30,11 @@ if ! test -f "$settings"; then
     echo "Missing GTK4 settings file: $settings" >&2
     exit 1
 fi
+
+if ! test -f "$plist"; then
+    echo "Missing app bundle metadata: $plist" >&2
+    exit 1
+fi
+
+python3 "$script_dir/macos-bundle-metadata.py" verify "$plist" \
+    "$core_version" "$bundle_revision" "$copyright_year"
