@@ -61,7 +61,10 @@ jobs:
           path: gnucash-source
 
       - name: Test macOS app bundle contract
-        run: bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-verify-macos-app-bundle.sh"
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-macos-bundle-metadata.py"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-verify-macos-app-bundle.sh"
 
       - name: Install GTK-OSX build environment
         run: |
@@ -155,6 +158,13 @@ jobs:
           mkdir -p "$BUNDLE_HOME"
           "$JHBUILD" run env HOME="$BUNDLE_HOME" gtk-mac-bundler \
             "$GITHUB_WORKSPACE/gnucash-on-osx/gnucash-bundler/gnucash-unstable.bundle"
+
+      - name: Synchronize app bundle minimum macOS version
+        run: |
+          set -euo pipefail
+          metadata="$GITHUB_WORKSPACE/gnucash-on-osx/macos-bundle-metadata.py"
+          python3 "$metadata" synchronize-minimum-system-version \
+            "$APP_BUNDLE/Contents/Info.plist" "$APP_BUNDLE/Contents"
 
       - name: Verify GTK4 app bundle
         run: |

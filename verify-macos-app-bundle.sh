@@ -15,6 +15,7 @@ executable="$app/Contents/MacOS/Gnucash"
 settings="$app/Contents/Resources/etc/gtk-4.0/settings.ini"
 plist="$app/Contents/Info.plist"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
+python="${PYTHON:-python3}"
 
 if ! test -d "$app"; then
     echo "Missing macOS app bundle: $app" >&2
@@ -36,5 +37,7 @@ if ! test -f "$plist"; then
     exit 1
 fi
 
-python3 "$script_dir/macos-bundle-metadata.py" verify "$plist" \
+"$python" "$script_dir/macos-bundle-metadata.py" verify "$plist" \
     "$core_version" "$bundle_revision" "$copyright_year"
+"$python" "$script_dir/macos-bundle-metadata.py" verify-minimum-system-version \
+    "$plist" "$app/Contents" --otool "${OTOOL:-otool}"
