@@ -43,6 +43,8 @@ jobs:
             printf 'ROOT_DIR=%s\n' "$build_root"
             printf 'PREFIX=%s\n' "$build_root"
             printf 'INSTALL_PREFIX=%s\n' "$build_root/inst"
+            printf 'BUNDLE_HOME=%s\n' "$RUNNER_TEMP/gnucash-bundle-home"
+            printf 'APP_BUNDLE=%s\n' "$RUNNER_TEMP/gnucash-bundle-home/Gnucash.app"
           } >> "$GITHUB_ENV"
 
       - name: Checkout gnucash-on-osx
@@ -56,6 +58,9 @@ jobs:
           repository: ${{ inputs.core_repository }}
           ref: ${{ inputs.core_ref }}
           path: gnucash-source
+
+      - name: Test macOS app bundle contract
+        run: bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-verify-macos-app-bundle.sh"
 
       - name: Install GTK-OSX build environment
         run: |
@@ -129,20 +134,17 @@ jobs:
       - name: Create GTK4 app bundle
         run: |
           set -euo pipefail
-          bundle_home="$RUNNER_TEMP/gnucash-bundle-home"
-          mkdir -p "$bundle_home"
-          "$JHBUILD" run env HOME="$bundle_home" gtk-mac-bundler \
+          mkdir -p "$BUNDLE_HOME"
+          "$JHBUILD" run env HOME="$BUNDLE_HOME" gtk-mac-bundler \
             "$GITHUB_WORKSPACE/gnucash-on-osx/gnucash-bundler/gnucash-unstable.bundle"
 
       - name: Verify GTK4 app bundle
         run: |
           set -euo pipefail
-          app="$RUNNER_TEMP/gnucash-bundle-home/.Gnucash.app"
+          app="$APP_BUNDLE"
           links="$RUNNER_TEMP/gnucash-bundle-otool.txt"
 
-          test -d "$app"
-          test -x "$app/Contents/MacOS/Gnucash"
-          test -f "$app/Contents/Resources/etc/gtk-4.0/settings.ini"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/verify-macos-app-bundle.sh" "$app"
 
           forbidden="$(find "$app/Contents" \
             \( -ipath '*gtk-3.0*' -o -iname '*gtk3*' -o -iname '*gtk-3*' -o -iname '*webkit2gtk*' \) \
@@ -169,7 +171,7 @@ jobs:
       - name: Smoke-test GTK4 app startup
         run: |
           set -euo pipefail
-          app="$RUNNER_TEMP/gnucash-bundle-home/.Gnucash.app"
+          app="$APP_BUNDLE"
           runtime_home="$RUNNER_TEMP/gnucash-runtime-home"
           log="$RUNNER_TEMP/gnucash-bundle-startup.log"
           mkdir -p "$runtime_home"
@@ -206,23 +208,21 @@ jobs:
       - name: Package smoke-tested GTK4 app bundle
         run: |
           set -euo pipefail
-          source_app="$RUNNER_TEMP/gnucash-bundle-home/.Gnucash.app"
+          source_app="$APP_BUNDLE"
           staging="$(mktemp -d "$RUNNER_TEMP/gnucash-bundle-artifact.XXXXXX")"
           validation="$(mktemp -d "$RUNNER_TEMP/gnucash-bundle-validation.XXXXXX")"
           staged_app="$staging/Gnucash.app"
           restored_app="$validation/Gnucash.app"
           archive="$RUNNER_TEMP/gnucash-gtk4-macos-app.zip"
 
-          test -d "$source_app"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/verify-macos-app-bundle.sh" "$source_app"
           ditto --rsrc --extattr --acl "$source_app" "$staged_app"
           ditto -c -k --rsrc --extattr --acl --sequesterRsrc --keepParent \
             "$staged_app" "$archive"
           test -s "$archive"
 
           ditto -x -k --rsrc --extattr --acl "$archive" "$validation"
-          test -d "$restored_app"
-          test -x "$restored_app/Contents/MacOS/Gnucash"
-          test -f "$restored_app/Contents/Resources/etc/gtk-4.0/settings.ini"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/verify-macos-app-bundle.sh" "$restored_app"
 
           staged_links="$validation/staged-symlinks"
           restored_links="$validation/restored-symlinks"
