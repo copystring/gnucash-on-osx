@@ -1,0 +1,56 @@
+name: macos-fixture-contracts
+
+on:
+  pull_request:
+    paths:
+      - depstarball.sh
+      - dependencies-gtk4.txt
+      - gnucash-bundler/Info-unstable.plist
+      - verify-macos-app-bundle.sh
+      - macos-bundle-metadata.py
+      - tests/test-depstarball-bundle-inputs.sh
+      - tests/test-depstarball-icon-themes.sh
+      - tests/test-macos-bundle-metadata.py
+      - tests/test-verify-macos-app-bundle.sh
+      - .github/workflows/macos-fixture-contracts.yml
+  push:
+    branches:
+      - feature/**
+      - fix/**
+    paths:
+      - depstarball.sh
+      - dependencies-gtk4.txt
+      - gnucash-bundler/Info-unstable.plist
+      - verify-macos-app-bundle.sh
+      - macos-bundle-metadata.py
+      - tests/test-depstarball-bundle-inputs.sh
+      - tests/test-depstarball-icon-themes.sh
+      - tests/test-macos-bundle-metadata.py
+      - tests/test-verify-macos-app-bundle.sh
+      - .github/workflows/macos-fixture-contracts.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture-contracts:
+    name: Fixture contracts on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run archive and bundle fixtures
+        run: |
+          set -euo pipefail
+          bash tests/test-depstarball-icon-themes.sh
+          bash tests/test-depstarball-bundle-inputs.sh
+          python3 tests/test-macos-bundle-metadata.py
+          bash tests/test-verify-macos-app-bundle.sh
