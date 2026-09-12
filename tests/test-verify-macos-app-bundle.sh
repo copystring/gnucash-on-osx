@@ -126,6 +126,7 @@ assert_fails_with()
 app="$fixture/Gnucash.app"
 binary="$app/Contents/MacOS/Gnucash"
 settings="$app/Contents/Resources/etc/gtk-4.0/settings.ini"
+guide="$app/Contents/Resources/en.lproj/GnuCash Guide/index.html"
 plist="$app/Contents/Info.plist"
 log="$fixture/verify.log"
 core_version="5.90"
@@ -157,6 +158,8 @@ assert_fails_with "Missing GTK4 settings file: $settings" "$log" \
     "${verify_app[@]}"
 
 : > "$settings"
+mkdir -p "$(dirname "$guide")"
+: > "$guide"
 assert_fails_with "Missing app bundle metadata: $plist" "$log" \
     "${verify_app[@]}"
 
@@ -185,6 +188,11 @@ assert_fails_with \
     "$log" "$python" "$metadata" verify "$plist_template" 4.904 1 2023
 
 cp "$plist_template" "$plist"
+rm "$guide"
+assert_fails_with "Missing bundled GnuCash Guide: $guide" "$log" \
+    "${verify_app[@]}"
+
+: > "$guide"
 "$python" "$metadata" prepare "$plist" "$plist" \
     "$core_version" "$bundle_revision" "$copyright_year"
 test "$("$python" "$metadata" bundle-minimum-system-version \

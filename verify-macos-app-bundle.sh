@@ -13,6 +13,7 @@ bundle_revision="$3"
 copyright_year="$4"
 executable="$app/Contents/MacOS/Gnucash"
 settings="$app/Contents/Resources/etc/gtk-4.0/settings.ini"
+guide="$app/Contents/Resources/en.lproj/GnuCash Guide/index.html"
 plist="$app/Contents/Info.plist"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 python="${PYTHON:-python3}"
@@ -29,6 +30,11 @@ fi
 
 if ! test -f "$settings"; then
     echo "Missing GTK4 settings file: $settings" >&2
+    exit 1
+fi
+
+if ! test -f "$guide"; then
+    echo "Missing bundled GnuCash Guide: $guide" >&2
     exit 1
 fi
 

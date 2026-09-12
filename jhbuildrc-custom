@@ -12,6 +12,9 @@ buildroot = os.path.join(os.path.dirname(prefix), 'build')
 moduleset = os.environ.get(
     'MODULESET',
     "https://github.com/gnucash/gnucash-on-osx/raw/master/modulesets/gnucash.modules")
+_docs_moduleset = os.environ.get('DOCS_MODULESET')
+if _docs_moduleset:
+    moduleset = [moduleset, _docs_moduleset]
 
 _modules_deps = ['pygments', 'meta-gtk-osx-bootstrap',
                  'meta-gnucash-dependencies']
