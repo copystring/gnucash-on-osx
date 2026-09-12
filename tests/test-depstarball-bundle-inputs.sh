@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_base="$(cd -- "${TMPDIR:-/tmp}" && pwd -P)"
 test_root="$(mktemp -d "$tmp_base/gnucash-bundle-inputs.XXXXXX")"
+real_find="$(command -v find)"
 
 cleanup()
 {
@@ -92,6 +93,98 @@ assert_log_contains()
     fi
 }
 
+tool_dir="$test_root/macho tools"
+mkdir -p "$tool_dir"
+cat > "$tool_dir/find" <<'EOF'
+#!/usr/bin/env bash
+if [ "${MACHO_TOOL_MODE:-}" = find-fail ]; then
+    echo 'deliberate find failure' >&2
+    exit 31
+fi
+exec "${REAL_FIND:?}" "$@"
+EOF
+cat > "$tool_dir/file" <<'EOF'
+#!/usr/bin/env bash
+if [ "${MACHO_TOOL_MODE:-}" = file-fail ]; then
+    echo 'deliberate file failure' >&2
+    exit 32
+fi
+file_arg="$1"
+if [ "$file_arg" = -b ]; then
+    file_arg="$2"
+fi
+if [ "${MACHO_TOOL_MODE:-}" = no-macho ]; then
+    printf 'data\n'
+    exit 0
+fi
+if [ "${MACHO_TOOL_MODE:-}" = filename-macho ] && [[ "$file_arg" == *Mach-O* ]]; then
+    if [ "$1" = -b ]; then
+        printf 'ASCII text\n'
+    else
+        printf '%s: ASCII text\n' "$file_arg"
+    fi
+    exit 0
+fi
+printf 'Mach-O 64-bit executable\n'
+EOF
+cat > "$tool_dir/otool" <<'EOF'
+#!/usr/bin/env bash
+if [ "${MACHO_TOOL_MODE:-}" = otool-fail ]; then
+    echo 'deliberate otool failure' >&2
+    exit 33
+fi
+if [ "${MACHO_TOOL_MODE:-}" = filename-macho ] && [[ "$2" == *Mach-O* ]]; then
+    echo 'ordinary text file reached otool' >&2
+    exit 34
+fi
+dependency="$MACHO_INST_DIR/lib/present.dylib"
+if [ "${MACHO_TOOL_MODE:-}" = missing-dependency ]; then
+    dependency="$MACHO_INST_DIR/lib/missing.dylib"
+fi
+printf '%s:\n\t%s (compatibility version 1.0.0, current version 1.0.0)\n' \
+    "$2" "$dependency"
+EOF
+chmod 755 "$tool_dir/find" "$tool_dir/file" "$tool_dir/otool"
+
+macho_archive="$test_root/archive with spaces"
+macho_prefix="$test_root/installed prefix"
+mkdir -p "$macho_archive/bin" "$macho_archive/lib" "$macho_prefix/lib"
+: > "$macho_archive/bin/macho binary"
+: > "$macho_archive/lib/present.dylib"
+: > "$macho_archive/lib/ordinary Mach-O text"
+
+run_macho_verifier()
+{
+    local mode="$1"
+
+    PATH="$tool_dir:$PATH" \
+    REAL_FIND="$real_find" \
+    MACHO_TOOL_MODE="$mode" \
+    MACHO_INST_DIR="$macho_prefix" \
+    VERIFY_GTK4=1 \
+    JHBUILD_PREFIX="$macho_prefix" \
+    TAR_DIR="$macho_archive" \
+        bash "$SCRIPT_DIR/depstarball.sh" verify-macho-closure
+}
+
+run_macho_verifier positive
+run_macho_verifier filename-macho
+for failure_case in missing-dependency otool-fail file-fail find-fail no-macho; do
+    if run_macho_verifier "$failure_case" > "$test_root/$failure_case.log" 2>&1; then
+        echo "Mach-O $failure_case unexpectedly passed." >&2
+        exit 1
+    fi
+done
+assert_log_contains 'unresolved Mach-O dependencies:' "$test_root/missing-dependency.log"
+assert_log_contains 'lib/missing.dylib' "$test_root/missing-dependency.log"
+assert_log_contains 'Cannot inspect GTK4 dependency archive Mach-O file' "$test_root/otool-fail.log"
+assert_log_contains 'deliberate otool failure' "$test_root/otool-fail.log"
+assert_log_contains 'Cannot inspect GTK4 dependency archive file' "$test_root/file-fail.log"
+assert_log_contains 'deliberate file failure' "$test_root/file-fail.log"
+assert_log_contains 'Cannot enumerate GTK4 dependency archive Mach-O files' "$test_root/find-fail.log"
+assert_log_contains 'deliberate find failure' "$test_root/find-fail.log"
+assert_log_contains 'has no inspectable Mach-O files' "$test_root/no-macho.log"
+
 valid="$test_root/valid"
 write_valid_archive "$valid"
 run_verifier "$valid"
@@ -173,4 +266,4 @@ fi
 assert_log_contains 'missing GDK Pixbuf loader modules: lib/gdk-pixbuf-2.0/2.10.0/loaders/\*.so' \
     "$test_root/directory-loader.log"
 
-echo 'GTK4 archive bundle-input fixtures passed.'
+echo 'GTK4 archive bundle-input and Mach-O closure fixtures passed.'

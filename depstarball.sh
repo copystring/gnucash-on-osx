@@ -31,7 +31,7 @@ fi
 
 VERIFY_ONLY_MODE=
 case "${1:-}" in
-    verify-symlinks|verify-icon-themes|verify-bundle-inputs) VERIFY_ONLY_MODE="$1" ;;
+    verify-symlinks|verify-icon-themes|verify-bundle-inputs|verify-macho-closure) VERIFY_ONLY_MODE="$1" ;;
 esac
 if [ -z "$VERIFY_ONLY_MODE" ]; then
     mkdir -p "$INST_DIR" "$PARK_DIR" "$TAR_DIR" "$BUILD_DIR"
@@ -86,7 +86,13 @@ verify_gtk4_dependencies()
 verify_macho_closure()
 {
     local binary
+    local binary_list
+    local dependency_line
     local dependency
+    local file_type
+    local first_line
+    local macho_count=0
+    local otool_output
     local relative_dependency
     local missing_file="$TAR_DIR/.missing-macho-dependencies"
 
@@ -98,14 +104,41 @@ verify_macho_closure()
         return 1
     fi
 
+    if ! binary_list="$(mktemp "$TAR_DIR/.macho-files.XXXXXX")"; then
+        echo "Cannot create GTK4 Mach-O inspection list in $TAR_DIR" >&2
+        return 1
+    fi
     : > "$missing_file"
+    if ! find "$TAR_DIR/bin" "$TAR_DIR/lib" -type f -print0 > "$binary_list"; then
+        echo "Cannot enumerate GTK4 dependency archive Mach-O files" >&2
+        rm -f "$binary_list" "$missing_file"
+        return 1
+    fi
     while IFS= read -r -d '' binary
     do
-        if ! file "$binary" | grep -q 'Mach-O'; then
+        if ! file_type="$(file -b "$binary" 2>&1)"; then
+            echo "Cannot inspect GTK4 dependency archive file $binary: $file_type" >&2
+            rm -f "$binary_list" "$missing_file"
+            return 1
+        fi
+        if [[ "$file_type" != *Mach-O* ]]; then
             continue
         fi
-        while IFS= read -r dependency
+        macho_count=$((macho_count + 1))
+        if ! otool_output="$(otool -L "$binary" 2>&1)"; then
+            echo "Cannot inspect GTK4 dependency archive Mach-O file $binary: $otool_output" >&2
+            rm -f "$binary_list" "$missing_file"
+            return 1
+        fi
+        first_line=1
+        while IFS= read -r dependency_line
         do
+            if [ "$first_line" -eq 1 ]; then
+                first_line=0
+                continue
+            fi
+            dependency="${dependency_line#"${dependency_line%%[![:space:]]*}"}"
+            dependency="${dependency%% (compatibility version *}"
             case "$dependency" in
                 "$INST_DIR"/*)
                     relative_dependency="${dependency#"$INST_DIR"/}"
@@ -114,9 +147,15 @@ verify_macho_closure()
                     fi
                     ;;
             esac
-        done < <(otool -L "$binary" 2>/dev/null | awk 'NR > 1 { print $1 }')
-    done < <(find "$TAR_DIR/bin" "$TAR_DIR/lib" -type f -print0)
+        done <<< "$otool_output"
+    done < "$binary_list"
+    rm -f "$binary_list"
 
+    if [ "$macho_count" -eq 0 ]; then
+        echo "GTK4 dependency archive has no inspectable Mach-O files" >&2
+        rm -f "$missing_file"
+        return 1
+    fi
     if [ -s "$missing_file" ]; then
         echo "GTK4 dependency archive has unresolved Mach-O dependencies:" >&2
         sort -u "$missing_file" >&2
@@ -480,6 +519,10 @@ case "$VERIFY_ONLY_MODE" in
         verify_gtk4_archive_bundle_inputs
         exit 0
         ;;
+    verify-macho-closure)
+        verify_macho_closure
+        exit 0
+        ;;
 esac
 
 trap reset_from_tarball EXIT
@@ -504,7 +547,7 @@ case "${1:-}" in
         test_tarball
         ;;
     *)
-        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks|verify-icon-themes|verify-bundle-inputs]" >&2
+        echo "Usage: $0 [use_tarball|restore|build|verify-symlinks|verify-icon-themes|verify-bundle-inputs|verify-macho-closure]" >&2
         exit 2
         ;;
 esac
