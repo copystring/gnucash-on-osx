@@ -67,7 +67,7 @@ if "$fixture/jhbuild" run sh -c "$old_inline" sh 26.5 \
     echo 'Expected pinned GTK-OSX wrapper to break the inline sh -c argument' >&2
     exit 1
 fi
-grep -Fq 'syntax error' "$fixture/old-inline.log"
+grep -Fiq 'syntax error' "$fixture/old-inline.log"
 
 "$fixture/jhbuild" run bash "$verify" 26.5 "$probe_source" "$probe_library"
 test -f "$probe_library"

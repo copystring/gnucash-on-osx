@@ -1,5 +1,6 @@
 name: Reviewed GTK4 macOS refresh
-# Retry the reviewed refresh after removing inline commands from the GTK-OSX wrapper path.
+# Retry the reviewed refresh with the libffi developer-header closure and the
+# byte-safe gtk-osx-docbook install environment.
 
 on:
   push:

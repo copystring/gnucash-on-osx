@@ -138,6 +138,7 @@ include/cairo/
 include/dbi/
 include/freetype2/
 include/fribidi/
+include/ffi.h include/ffitarget.h
 include/gmp.h
 include/gdk-pixbuf-2.0/
 include/gio-unix-2.0/

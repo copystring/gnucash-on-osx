@@ -45,6 +45,10 @@ module_extra_env['boost'] = {'CXXFLAGS':os.environ['CXXFLAGS'] + ' -std=c++17'}
 module_extra_env['mariadb-connector'] = {'CFLAGS':os.environ['CFLAGS'] + ' -std=c99'} # -Wno-deprecated-non-prototype'}
 module_extra_env['OpenSP'] = {'CXXFLAGS':os.environ['CXXFLAGS'] + ' -std=c++03'}
 module_extra_env['libchipcard'] = {'CXXFLAGS':os.environ['CXXFLAGS'] + ' -std=c++03'}
+# gtk-osx-docbook 1.3 rewrites legacy XML/SGML entity files with BSD sed.
+# Several files are intentionally not UTF-8, so use the byte-oriented locale
+# for this module instead of allowing sed to create empty installed files.
+module_extra_env['gtk-osx-docbook'] = {'LC_ALL':'C'}
 
 module_cmakeargs['boost'] = '-DCMAKE_CXX_FLAGS="' + os.environ['CXXFLAGS'] + ' -std=c++17"'
 module_cmakeargs["mariadb-connector"] = "-DCMAKE_INSTALL_NAME_DIR=" + os.path.join(prefix, 'lib', 'mariadb')

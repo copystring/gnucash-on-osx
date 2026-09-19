@@ -315,6 +315,7 @@ jobs:
           require_version gio-unix-2.0 2.88.0
           require_version cairo 1.18.4
           require_version cairo-gobject 1.18.4
+          require_version libffi 3.5.2
           require_version epoxy 1.5.10
           require_version gtk4 4.22.1
           "$ROOT_DIR/inst/bin/pkgconf" --exists gtk4-macos gwengui-gtk4 aqbanking
@@ -349,6 +350,15 @@ jobs:
         if: inputs.gtk_refresh == true
         run: |
           set -euo pipefail
+          # The published runtime archive contains libffi and its .pc file but
+          # predates the developer headers required to rebuild GI. Rebuild this
+          # one pinned prerequisite through GTK-OSX, then prove the remaining
+          # archived developer closure before starting the three large modules.
+          "$JHBUILD" --no-interact --exit-on-error updateone libffi
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network libffi
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
+            "$ROOT_DIR/inst" 3.5.2
           for module in gobject-introspection libepoxy gtk-4
           do
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
@@ -357,6 +367,8 @@ jobs:
           test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
           test -x "$ROOT_DIR/inst/bin/g-ir-compiler"
           test -d "$ROOT_DIR/inst/include/gobject-introspection-1.0"
+          test -f "$ROOT_DIR/inst/include/ffi.h"
+          test -f "$ROOT_DIR/inst/include/ffitarget.h"
           test -d "$ROOT_DIR/inst/share/gir-1.0"
           test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.dylib"
           test -f "$ROOT_DIR/inst/include/epoxy/gl.h"
