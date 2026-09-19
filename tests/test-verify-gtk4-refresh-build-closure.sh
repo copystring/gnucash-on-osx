@@ -58,7 +58,9 @@ case "$1" in
         printf '%s\n' "-I$FIXTURE_PREFIX/include -I$FIXTURE_PREFIX/include/glib-2.0 -I$FIXTURE_PREFIX/include/cairo -I$FIXTURE_PREFIX/include/atk -I$FIXTURE_PREFIX/include/gdk-pixbuf -I$FIXTURE_PREFIX/include/graphene-1.0 -I$FIXTURE_PREFIX/include/pango"
         ;;
     --libs)
-        printf '%s\n' ''
+        # Both real package groups have libraries; keep the fixture faithful so
+        # macOS Bash 3.2 reaches the fake compiler instead of an empty-array edge.
+        printf '%s\n' '-lfixture'
         ;;
     *)
         echo "Unexpected pkgconf invocation: $*" >&2
