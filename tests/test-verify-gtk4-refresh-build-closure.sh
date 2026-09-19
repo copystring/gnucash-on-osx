@@ -9,6 +9,18 @@ verify_gdbus="$repository/verify-gtk4-refresh-gdbus-codegen.sh"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/gtk4-refresh-closure-fixture.XXXXXX")"
 trap 'rm -rf "$fixture"' EXIT
 
+assert_log_contains()
+{
+    local expected="$1"
+    local log="$2"
+
+    if ! grep -Fq "$expected" "$log"; then
+        echo "Expected diagnostic not found: $expected" >&2
+        cat "$log" >&2
+        return 1
+    fi
+}
+
 grep -Fxq 'include/ffi.h include/ffitarget.h' \
     "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/pcre2.h include/pcre2posix.h' \
@@ -282,7 +294,8 @@ if CC="$fixture/cc" bash "$verify_gdbus" "$prefix" >"$fixture/error.log" 2>&1; t
     echo 'Expected missing gdbus-codegen module to fail' >&2
     exit 1
 fi
-grep -Fq 'missing the gdbus-codegen module: codegen_main.py' "$fixture/error.log"
+assert_log_contains 'missing the gdbus-codegen module: codegen_main.py' \
+    "$fixture/error.log"
 cat > "$prefix/share/glib-2.0/codegen/codegen_main.py" <<'EOF'
 def codegen_main():
     import argparse, pathlib
@@ -301,7 +314,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected missing libffi header to fail' >&2
     exit 1
 fi
-grep -Fq 'missing the libffi developer header: include/ffi.h' "$fixture/error.log"
+assert_log_contains 'missing the libffi developer header: include/ffi.h' \
+    "$fixture/error.log"
 : > "$prefix/include/ffi.h"
 
 rm "$prefix/include/pcre2.h"
@@ -309,7 +323,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete PCRE2 developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing a PCRE2 developer header: include/pcre2.h' "$fixture/error.log"
+assert_log_contains 'missing a PCRE2 developer header: include/pcre2.h' \
+    "$fixture/error.log"
 : > "$prefix/include/pcre2.h"
 
 rm "$prefix/include/zconf.h"
@@ -317,7 +332,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete zlib developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing a zlib developer header: include/zconf.h' "$fixture/error.log"
+assert_log_contains 'missing a zlib developer header: include/zconf.h' \
+    "$fixture/error.log"
 : > "$prefix/include/zconf.h"
 
 rm "$prefix/include/jconfig.h"
@@ -325,7 +341,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete libjpeg developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing a libjpeg developer header: include/jconfig.h' "$fixture/error.log"
+assert_log_contains 'missing a libjpeg developer header: include/jconfig.h' \
+    "$fixture/error.log"
 : > "$prefix/include/jconfig.h"
 
 rm "$prefix/include/tiffconf.h"
@@ -333,7 +350,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete libtiff developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing a libtiff developer header: include/tiffconf.h' "$fixture/error.log"
+assert_log_contains 'missing a libtiff developer header: include/tiffconf.h' \
+    "$fixture/error.log"
 : > "$prefix/include/tiffconf.h"
 
 rm "$prefix/include/fontconfig/fontconfig.h"
@@ -341,7 +359,9 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete Fontconfig developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing the fontconfig developer header: include/fontconfig/fontconfig.h' "$fixture/error.log"
+assert_log_contains \
+    'missing the fontconfig developer header: include/fontconfig/fontconfig.h' \
+    "$fixture/error.log"
 : > "$prefix/include/fontconfig/fontconfig.h"
 
 rm "$prefix/include/freetype2/ft2build.h"
@@ -349,7 +369,9 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete FreeType developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'missing the FreeType developer header: include/freetype2/ft2build.h' "$fixture/error.log"
+assert_log_contains \
+    'missing the FreeType developer header: include/freetype2/ft2build.h' \
+    "$fixture/error.log"
 : > "$prefix/include/freetype2/ft2build.h"
 
 rm "$prefix/share/gir-1.0/Gio-2.0.gir"
@@ -357,7 +379,7 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete GTK GIR closure to fail' >&2
     exit 1
 fi
-grep -Fq 'Missing GIR include: Gio-2.0.gir' "$fixture/error.log"
+assert_log_contains 'Missing GIR include: Gio-2.0.gir' "$fixture/error.log"
 install_gir Gio 2.0
 
 rm "$prefix/lib/girepository-1.0/Pango-1.0.typelib"
@@ -365,7 +387,8 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected missing compiled GTK typelib to fail' >&2
     exit 1
 fi
-grep -Fq 'Missing compiled typelib: Pango-1.0.typelib' "$fixture/error.log"
+assert_log_contains 'Missing compiled typelib: Pango-1.0.typelib' \
+    "$fixture/error.log"
 install_gir Pango 1.0
 
 rm "$prefix/include/gobject-introspection-1.0/girepository.h"
@@ -373,15 +396,17 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.
     echo 'Expected incomplete GObject Introspection developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'cannot compile and link the gobject-introspection developer closure' \
+assert_log_contains \
+    'cannot compile and link the gobject-introspection developer closure' \
     "$fixture/error.log"
 : > "$prefix/include/gobject-introspection-1.0/girepository.h"
 
 rm "$prefix/include/pango/pango.h"
 if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
-    echo 'Expected incomplete GTK developer closure to fail' >&2
+    echo 'Expected incomplete Pango developer closure to fail' >&2
     exit 1
 fi
-grep -Fq 'cannot compile and link the gtk developer closure' "$fixture/error.log"
+assert_log_contains 'cannot compile and link the pango developer closure' \
+    "$fixture/error.log"
 
 echo 'GTK4 refresh build-closure fixtures passed.'
