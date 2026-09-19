@@ -11,6 +11,7 @@ trap 'rm -rf "$fixture"' EXIT
 
 grep -Fxq 'include/ffi.h include/ffitarget.h' \
     "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/epoxy/' "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h' \
     "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h' \

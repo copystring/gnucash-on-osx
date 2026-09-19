@@ -13,6 +13,7 @@ BASE_MANIFEST_PATH = "dependencies-gtk4.txt"
 MODULESET_PATH = "modulesets/gnucash.modules"
 OUTPUT_MANIFEST_ADDITIONS = (
     (b"bin/ctest\n", b"bin/gdbus-codegen\n"),
+    (b"include/dbi/\n", b"include/epoxy/\n"),
     (b"include/fribidi/\n", b"include/ffi.h include/ffitarget.h\n"),
     (b"include/gmp.h\n",
      b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n"),

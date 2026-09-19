@@ -137,6 +137,7 @@ include/aqbanking6/
 include/boost/
 include/cairo/
 include/dbi/
+include/epoxy/
 include/freetype2/
 include/fribidi/
 include/ffi.h include/ffitarget.h

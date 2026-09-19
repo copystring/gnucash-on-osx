@@ -24,13 +24,14 @@ class RefreshRecipeTests(unittest.TestCase):
     @staticmethod
     def manifest():
         return (b"bin/cmake\nbin/ctest\nbin/gettext\n"
-                b"include/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
+                b"include/dbi/\ninclude/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
                 b"include/python3.14/\ninclude/unicode/\n")
 
     def test_manifest_allows_only_audited_output_headers(self):
         base = self.manifest()
         output = RECIPE.expected_output_manifest(base)
         RECIPE.verify_manifest(base, output, hashlib.sha256(base).hexdigest())
+        self.assertIn(b"include/epoxy/\n", output)
         self.assertIn(b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n",
                       output)
         self.assertIn(b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n",
