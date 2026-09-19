@@ -107,10 +107,10 @@ EOF
 chmod +x "$prefix/bin/pkgconf" "$fixture/cc"
 
 export FIXTURE_PREFIX="$prefix"
-CC="$fixture/cc" "$verify" "$prefix" 3.5.2
+CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2
 
 rm "$prefix/include/ffi.h"
-if CC="$fixture/cc" "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected missing libffi header to fail' >&2
     exit 1
 fi
@@ -118,7 +118,7 @@ grep -Fq 'missing the libffi developer header: include/ffi.h' "$fixture/error.lo
 : > "$prefix/include/ffi.h"
 
 rm "$prefix/include/pango/pango.h"
-if CC="$fixture/cc" "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete GTK developer closure to fail' >&2
     exit 1
 fi
