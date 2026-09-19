@@ -19,6 +19,8 @@ grep -Fxq 'include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib
     "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h' \
     "$repository/dependencies-gtk4.txt"
+grep -Fxq 'lib/girepository-1.0/' "$repository/dependencies-gtk4.txt"
+grep -Fxq 'share/gir-1.0/' "$repository/dependencies-gtk4.txt"
 grep -Fxq 'bin/gdbus-codegen' "$repository/dependencies-gtk4.txt"
 grep -Fxq "module_extra_env['gtk-osx-docbook'] = {'LC_ALL':'C'}" \
     "$repository/jhbuildrc-custom"
@@ -36,16 +38,34 @@ grep -Fq 'GTK4_REFRESH_FONTCONFIG_XML_BACKEND: libxml2' "$workflow"
 leaf_line="$(grep -n 'for module in libffi fontconfig libjpeg libtiff' "$workflow" | cut -d: -f1)"
 gdbus_line="$(grep -n 'verify-gtk4-refresh-gdbus-codegen.sh' "$workflow" | cut -d: -f1)"
 verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1)"
-gi_line="$(grep -n 'for module in gobject-introspection libepoxy' "$workflow" | cut -d: -f1)"
+gi_line="$(grep -Fn '            gobject-introspection \' "$workflow" | cut -d: -f1)"
+glib_line="$(grep -Fn '            glib \' "$workflow" | cut -d: -f1)"
+harfbuzz_line="$(grep -Fn '            harfbuzz \' "$workflow" | cut -d: -f1)"
+pango_line="$(grep -Fn '            pango \' "$workflow" | cut -d: -f1)"
+pixbuf_line="$(grep -Fn '            gdk-pixbuf \' "$workflow" | cut -d: -f1)"
+graphene_line="$(grep -Fn '            graphene' "$workflow" | cut -d: -f1)"
+epoxy_line="$(grep -n 'buildone --force --no-network libepoxy' "$workflow" | cut -d: -f1)"
 gtk_line="$(grep -n 'buildone --force --no-network gtk-4' "$workflow" | cut -d: -f1)"
 test -n "$leaf_line"
 test -n "$gdbus_line"
 test -n "$verify_line"
 test -n "$gi_line"
+test -n "$glib_line"
+test -n "$harfbuzz_line"
+test -n "$pango_line"
+test -n "$pixbuf_line"
+test -n "$graphene_line"
+test -n "$epoxy_line"
 test -n "$gtk_line"
 test "$gdbus_line" -lt "$leaf_line"
 test "$leaf_line" -lt "$gi_line"
-test "$gi_line" -lt "$verify_line"
+test "$gi_line" -lt "$glib_line"
+test "$glib_line" -lt "$harfbuzz_line"
+test "$harfbuzz_line" -lt "$pango_line"
+test "$pango_line" -lt "$pixbuf_line"
+test "$pixbuf_line" -lt "$graphene_line"
+test "$graphene_line" -lt "$epoxy_line"
+test "$epoxy_line" -lt "$verify_line"
 test "$verify_line" -lt "$gtk_line"
 
 prefix="$fixture/prefix"
@@ -59,6 +79,8 @@ mkdir -p "$prefix/bin" \
     "$prefix/include/glib-2.0" \
     "$prefix/include/graphene-1.0" \
     "$prefix/include/pango" \
+    "$prefix/lib/girepository-1.0" \
+    "$prefix/share/gir-1.0" \
     "$prefix/share/glib-2.0/codegen"
 for header in \
     ffi.h \
@@ -93,6 +115,29 @@ cat > "$prefix/bin/python3" <<EOF
 #!/usr/bin/env bash
 exec "$host_python" "\$@"
 EOF
+
+install_gir()
+{
+    local name="$1"
+    local version="$2"
+    cat > "$prefix/share/gir-1.0/$name-$version.gir" <<EOF
+<?xml version="1.0"?>
+<repository xmlns="http://www.gtk.org/introspection/core/1.0" version="1.2">
+  <namespace name="$name" version="$version"/>
+</repository>
+EOF
+    printf 'compiled fixture\n' > "$prefix/lib/girepository-1.0/$name-$version.typelib"
+}
+for identity in \
+    cairo:1.0 \
+    Gio:2.0 \
+    GdkPixbuf:2.0 \
+    Pango:1.0 \
+    PangoCairo:1.0 \
+    Graphene:1.0
+do
+    install_gir "${identity%%:*}" "${identity#*:}"
+done
 
 cat > "$prefix/share/glib-2.0/codegen/__init__.py" <<'EOF'
 EOF
@@ -259,6 +304,22 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; t
 fi
 grep -Fq 'missing the FreeType developer header: include/freetype2/ft2build.h' "$fixture/error.log"
 : > "$prefix/include/freetype2/ft2build.h"
+
+rm "$prefix/share/gir-1.0/Gio-2.0.gir"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete GTK GIR closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'Missing GIR include: Gio-2.0.gir' "$fixture/error.log"
+install_gir Gio 2.0
+
+rm "$prefix/lib/girepository-1.0/Pango-1.0.typelib"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected missing compiled GTK typelib to fail' >&2
+    exit 1
+fi
+grep -Fq 'Missing compiled typelib: Pango-1.0.typelib' "$fixture/error.log"
+install_gir Pango 1.0
 
 rm "$prefix/include/pango/pango.h"
 if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then

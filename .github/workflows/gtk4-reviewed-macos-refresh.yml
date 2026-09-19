@@ -1,6 +1,6 @@
 name: Reviewed GTK4 macOS refresh
-# Retry the reviewed refresh with the pinned Fontconfig, JPEG, TIFF, and Epoxy
-# developer closures archived alongside the verified GLib codegen launcher.
+# Retry the reviewed refresh with the pinned GTK developer and introspection
+# closures, including GLib's original GIR/typelib generation cycle.
 
 on:
   push:

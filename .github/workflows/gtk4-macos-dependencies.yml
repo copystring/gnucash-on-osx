@@ -75,6 +75,7 @@ jobs:
         run: |
           bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-depstarball-icon-themes.sh"
           bash "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-depstarball-bundle-inputs.sh"
+          python3 "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-verify-gtk4-refresh-gir-closure.py"
 
       - name: Fingerprint macOS toolchain
         id: toolchain
@@ -343,7 +344,9 @@ jobs:
           # and libtiff libraries and .pc files but predates their developer
           # headers and GLib's installed gdbus-codegen launcher. Materialize the
           # original launcher template from the same pinned GLib 2.88.0 source,
-          # then rebuild only those four pinned leaf libraries.
+          # then rebuild only those four pinned leaf libraries. The current GI
+          # release no longer installs GLib's GIRs: rebuild the original pinned
+          # introspection producers in dependency order after the GI tools.
           glib_archive="$RUNNER_TEMP/glib-2.88.0.tar.xz"
           gdbus_template="$RUNNER_TEMP/gdbus-codegen.in"
           curl --fail --location --show-error --retry 5 --retry-all-errors \
@@ -365,16 +368,29 @@ jobs:
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
           done
-          for module in gobject-introspection libepoxy
+          for module in \
+            gobject-introspection \
+            glib \
+            harfbuzz \
+            pango \
+            gdk-pixbuf \
+            graphene
           do
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
           done
+          "$JHBUILD" --no-interact --exit-on-error updateone libepoxy
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network libepoxy
           test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
           test -x "$ROOT_DIR/inst/bin/g-ir-compiler"
           test -d "$ROOT_DIR/inst/include/gobject-introspection-1.0"
           test -d "$ROOT_DIR/inst/share/gir-1.0"
           test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.dylib"
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion glib-2.0)" = 2.88.0
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion harfbuzz)" = 13.2.1
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion pango)" = 1.57.1
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion gdk-pixbuf-2.0)" = 2.44.5
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion graphene-1.0)" = 1.10.8
           test -f "$ROOT_DIR/inst/include/epoxy/gl.h"
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion epoxy)" = 1.5.10
           "$JHBUILD" run bash \
@@ -387,6 +403,9 @@ jobs:
           test -f "$ROOT_DIR/inst/include/jpeglib.h"
           test -f "$ROOT_DIR/inst/include/tiffio.h"
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion gtk4)" = 4.22.1
+          "$ROOT_DIR/inst/bin/python3" \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-gir-closure.py" \
+            "$ROOT_DIR/inst" Gdk-4.0 GdkMacos-4.0 Gsk-4.0 Gtk-4.0
           rebuilt_min_os="$(otool -l "$ROOT_DIR/inst/lib/libgtk-4.1.dylib" | awk '
             $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }
             active && ($1 == "minos" || $1 == "version") { print $2; exit }

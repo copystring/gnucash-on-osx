@@ -19,6 +19,8 @@ OUTPUT_MANIFEST_ADDITIONS = (
      b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n"),
     (b"include/python3.14/\n",
      b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n"),
+    (b"lib/gio/\n", b"lib/girepository-1.0/\n"),
+    (b"share/gettext-1.0/\n", b"share/gir-1.0/\n"),
 )
 EXPECTED_BASE_PATCHES = ["gtk-4.22.1-macos-toplevel-remap.patch"]
 EXPECTED_OUTPUT_PATCHES = [

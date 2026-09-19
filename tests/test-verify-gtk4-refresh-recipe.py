@@ -25,7 +25,9 @@ class RefreshRecipeTests(unittest.TestCase):
     def manifest():
         return (b"bin/cmake\nbin/ctest\nbin/gettext\n"
                 b"include/dbi/\ninclude/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
-                b"include/python3.14/\ninclude/unicode/\n")
+                b"include/python3.14/\ninclude/unicode/\n"
+                b"lib/gio/\nlib/glib-2.0/\n"
+                b"share/gettext-1.0/\nshare/glib-2.0/\n")
 
     def test_manifest_allows_only_audited_output_headers(self):
         base = self.manifest()
@@ -37,6 +39,8 @@ class RefreshRecipeTests(unittest.TestCase):
                       output)
         self.assertIn(b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n",
                       output)
+        self.assertIn(b"lib/girepository-1.0/\n", output)
+        self.assertIn(b"share/gir-1.0/\n", output)
 
         with self.assertRaisesRegex(ValueError, "beyond the audited developer-closure"):
             RECIPE.verify_manifest(base, output + b"include/unreviewed.h\n",

@@ -10,6 +10,7 @@ fi
 prefix="$1"
 expected_libffi_version="$2"
 pkgconf="$prefix/bin/pkgconf"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ ! -x "$pkgconf" ]; then
     echo "GTK4 refresh base has no executable pkgconf: $pkgconf" >&2
@@ -206,5 +207,10 @@ compile_probe pango-fontconfig "$temporary/pango-fontconfig.c" \
 compile_probe jpeg "$temporary/jpeg.c" libjpeg
 compile_probe png "$temporary/png.c" libpng
 compile_probe tiff "$temporary/tiff.c" libtiff-4
+
+# GTK's C dependency probes cannot establish its introspection build closure.
+# Follow every include from the exact upstream GIR roots consumed by the GDK
+# and GSK scanners, and require the corresponding compiled typelibs as well.
+"$prefix/bin/python3" "$script_dir/verify-gtk4-refresh-gir-closure.py" "$prefix"
 
 echo "Verified GTK4 refresh developer build closure."

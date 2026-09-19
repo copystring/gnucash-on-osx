@@ -43,6 +43,7 @@ lib/dbd/libdbdsqlite3.so
 lib/dbd/libdbdmysql.so
 lib/gdk-pixbuf-2.0/
 lib/gio/
+lib/girepository-1.0/
 lib/glib-2.0/
 lib/graphene-1.0/include/
 lib/guile/3.0/
@@ -168,6 +169,7 @@ share/cmake-4.3/
 share/glib-2.0/
 share/gettext/
 share/gettext-1.0/
+share/gir-1.0/
 share/guile/3.0
 share/gwenhywfar/
 share/icons/
