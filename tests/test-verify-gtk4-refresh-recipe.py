@@ -25,8 +25,11 @@ class RefreshRecipeTests(unittest.TestCase):
     def manifest():
         return (b"bin/cmake\nbin/ctest\nbin/gettext\n"
                 b"include/dbi/\ninclude/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
+                b"include/pixman-1\n"
                 b"include/python3.14/\ninclude/unicode/\n"
                 b"lib/gio/\nlib/glib-2.0/\n"
+                b"lib/libgpg-error.dylib lib/libgpg-error.0.dylib\n"
+                b"lib/libpcre2-8.dylib lib/libpcre2-8.0.dylib\n"
                 b"share/gettext-1.0/\nshare/glib-2.0/\n")
 
     def test_manifest_allows_only_audited_output_headers(self):
@@ -39,6 +42,15 @@ class RefreshRecipeTests(unittest.TestCase):
                       output)
         self.assertIn(b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n",
                       output)
+        self.assertIn(b"include/pcre2.h include/pcre2posix.h\n", output)
+        self.assertIn(b"include/zconf.h include/zlib.h\n", output)
+        self.assertIn(b"lib/libpcre2-16.dylib lib/libpcre2-16.0.dylib\n", output)
+        self.assertIn(b"lib/libpcre2-32.dylib lib/libpcre2-32.0.dylib\n", output)
+        self.assertIn(b"lib/libpcre2-posix.dylib lib/libpcre2-posix.3.dylib\n", output)
+        self.assertIn(b"include/gobject-introspection-1.0/\n", output)
+        self.assertIn(
+            b"lib/libgirepository-1.0.dylib lib/libgirepository-1.0.1.dylib\n",
+            output)
         self.assertIn(b"lib/girepository-1.0/\n", output)
         self.assertIn(b"share/gir-1.0/\n", output)
 
@@ -53,11 +65,24 @@ class RefreshRecipeTests(unittest.TestCase):
             RECIPE.verify_manifest(base, output, "0" * 64)
 
     def test_moduleset_rejects_unreviewed_output_patch(self):
-        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES)
+        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES, include_refresh_zlib=False)
         output = self.moduleset(
             RECIPE.EXPECTED_OUTPUT_PATCHES + ["unreviewed.patch"])
         with self.assertRaisesRegex(ValueError, "only the audited ownership patches"):
             RECIPE.verify_moduleset(base, output)
+
+    def test_moduleset_requires_exact_refresh_zlib_source(self):
+        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
+                              include_refresh_zlib=False)
+        missing = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES,
+                                 include_refresh_zlib=False)
+        with self.assertRaisesRegex(ValueError, "unexpected zlib repository"):
+            RECIPE.verify_moduleset(base, missing)
+
+        changed = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES).replace(
+            "zlib-1.3.2.tar.xz", "zlib-1.3.1.tar.xz")
+        with self.assertRaisesRegex(ValueError, "unexpected zlib source identity"):
+            RECIPE.verify_moduleset(base, changed)
 
     def test_checkout_uses_exact_commits_not_platform_line_endings(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -72,7 +97,8 @@ class RefreshRecipeTests(unittest.TestCase):
             base_manifest = self.manifest()
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(base_manifest)
             (checkout / RECIPE.MODULESET_PATH).write_text(
-                self.moduleset(RECIPE.EXPECTED_BASE_PATCHES), encoding="utf-8")
+                self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
+                               include_refresh_zlib=False), encoding="utf-8")
             subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
             subprocess.run(
                 ["git", "-C", str(checkout), "commit", "--quiet", "-m", "base"], check=True)
@@ -98,10 +124,18 @@ class RefreshRecipeTests(unittest.TestCase):
                 hashlib.sha256(base_manifest).hexdigest())
 
     @staticmethod
-    def moduleset(patch_names):
+    def moduleset(patch_names, include_refresh_zlib=True):
         patch_xml = "".join(f'<patch file="{name}"/>' for name in patch_names)
+        zlib_xml = ""
+        if include_refresh_zlib:
+            zlib_xml = (
+                '<repository name="zlib" href="https://zlib.net/fossils/" type="tarball"/>'
+                '<autotools id="zlib-gtk4-refresh" autogen-sh="configure">'
+                '<branch repo="zlib" module="zlib-1.3.2.tar.xz" version="1.3.2" '
+                'hash="sha256:d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"/>'
+                '</autotools>')
         return (
-            '<moduleset><autotools id="gtk-4" autogenargs="--fixture">'
+            '<moduleset>' + zlib_xml + '<autotools id="gtk-4" autogenargs="--fixture">'
             f'<branch repo="fixture" module="gtk.tar.xz">{patch_xml}</branch>'
             '<dependencies><dep package="glib"/></dependencies>'
             '</autotools></moduleset>')

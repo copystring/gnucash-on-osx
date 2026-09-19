@@ -85,7 +85,7 @@ verify_gtk4_dependencies()
     # and activated, so runtime-only .pc files cannot masquerade as a complete
     # GTK build closure in the produced artifact.
     bash "$SCRIPT_DIR/verify-gtk4-refresh-build-closure.sh" \
-        "$INST_DIR" 3.5.2
+        "$INST_DIR" 3.5.2 10.47 1.3.2
 }
 
 verify_macho_closure()

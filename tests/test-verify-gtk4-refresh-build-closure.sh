@@ -11,6 +11,14 @@ trap 'rm -rf "$fixture"' EXIT
 
 grep -Fxq 'include/ffi.h include/ffitarget.h' \
     "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/pcre2.h include/pcre2posix.h' \
+    "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/zconf.h include/zlib.h' \
+    "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/gobject-introspection-1.0/' \
+    "$repository/dependencies-gtk4.txt"
+grep -Fxq 'lib/libgirepository-1.0.dylib lib/libgirepository-1.0.1.dylib' \
+    "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/epoxy/' "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/fontconfig/' "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/freetype2/' "$repository/dependencies-gtk4.txt"
@@ -35,37 +43,37 @@ workflow="$repository/.github/workflows/gtk4-macos-dependencies.yml"
 grep -Fq 'require_version libxml-2.0 2.15.2' "$workflow"
 grep -Fq 'test -f "$ROOT_DIR/inst/include/libxml2/libxml/parser.h"' "$workflow"
 grep -Fq 'GTK4_REFRESH_FONTCONFIG_XML_BACKEND: libxml2' "$workflow"
-leaf_line="$(grep -n 'for module in libffi fontconfig libjpeg libtiff' "$workflow" | cut -d: -f1)"
+leaf_line="$(grep -n 'for module in libffi libpcre2 zlib-gtk4-refresh fontconfig libjpeg libtiff libepoxy' "$workflow" | cut -d: -f1)"
 gdbus_line="$(grep -n 'verify-gtk4-refresh-gdbus-codegen.sh' "$workflow" | cut -d: -f1)"
-verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1)"
+native_verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1 | head -n 1)"
+verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1 | tail -n 1)"
 gi_line="$(grep -Fn '            gobject-introspection \' "$workflow" | cut -d: -f1)"
 glib_line="$(grep -Fn '            glib \' "$workflow" | cut -d: -f1)"
 harfbuzz_line="$(grep -Fn '            harfbuzz \' "$workflow" | cut -d: -f1)"
 pango_line="$(grep -Fn '            pango \' "$workflow" | cut -d: -f1)"
 pixbuf_line="$(grep -Fn '            gdk-pixbuf \' "$workflow" | cut -d: -f1)"
 graphene_line="$(grep -Fn '            graphene' "$workflow" | cut -d: -f1)"
-epoxy_line="$(grep -n 'buildone --force --no-network libepoxy' "$workflow" | cut -d: -f1)"
 gtk_line="$(grep -n 'buildone --force --no-network gtk-4' "$workflow" | cut -d: -f1)"
 test -n "$leaf_line"
 test -n "$gdbus_line"
 test -n "$verify_line"
+test -n "$native_verify_line"
 test -n "$gi_line"
 test -n "$glib_line"
 test -n "$harfbuzz_line"
 test -n "$pango_line"
 test -n "$pixbuf_line"
 test -n "$graphene_line"
-test -n "$epoxy_line"
 test -n "$gtk_line"
 test "$gdbus_line" -lt "$leaf_line"
-test "$leaf_line" -lt "$gi_line"
+test "$leaf_line" -lt "$native_verify_line"
+test "$native_verify_line" -lt "$gi_line"
 test "$gi_line" -lt "$glib_line"
 test "$glib_line" -lt "$harfbuzz_line"
 test "$harfbuzz_line" -lt "$pango_line"
 test "$pango_line" -lt "$pixbuf_line"
 test "$pixbuf_line" -lt "$graphene_line"
-test "$graphene_line" -lt "$epoxy_line"
-test "$epoxy_line" -lt "$verify_line"
+test "$graphene_line" -lt "$verify_line"
 test "$verify_line" -lt "$gtk_line"
 
 prefix="$fixture/prefix"
@@ -75,16 +83,24 @@ mkdir -p "$prefix/bin" \
     "$prefix/include/epoxy" \
     "$prefix/include/fontconfig" \
     "$prefix/include/freetype2/freetype" \
+    "$prefix/include/fribidi" \
     "$prefix/include/gdk-pixbuf/gdk-pixbuf" \
-    "$prefix/include/glib-2.0" \
+    "$prefix/include/glib-2.0/gio" \
     "$prefix/include/graphene-1.0" \
+    "$prefix/include/gobject-introspection-1.0" \
+    "$prefix/include/harfbuzz" \
     "$prefix/include/pango" \
+    "$prefix/include/unicode" \
     "$prefix/lib/girepository-1.0" \
     "$prefix/share/gir-1.0" \
     "$prefix/share/glib-2.0/codegen"
 for header in \
     ffi.h \
     ffitarget.h \
+    pcre2.h \
+    pcre2posix.h \
+    zconf.h \
+    zlib.h \
     jconfig.h \
     jerror.h \
     jmorecfg.h \
@@ -100,12 +116,20 @@ for header in \
     fontconfig/fontconfig.h \
     freetype2/ft2build.h \
     freetype2/freetype/freetype.h \
+    fribidi/fribidi.h \
     gdk-pixbuf/gdk-pixbuf.h \
+    glib-2.0/gio/gio.h \
     glib-2.0/glib.h \
+    glib-2.0/glib-object.h \
+    glib-2.0/gmodule.h \
     graphene-1.0/graphene.h \
+    gobject-introspection-1.0/girepository.h \
+    harfbuzz/hb.h \
     pango/pango.h \
+    pango/pangocairo.h \
     pango/pangofc-fontmap.h \
-    pango/pangoft2.h
+    pango/pangoft2.h \
+    unicode/uversion.h
 do
     : > "$prefix/include/$header"
 done
@@ -175,13 +199,15 @@ case "$1" in
     --modversion)
         case "$2" in
             libffi) printf '%s\n' 3.5.2 ;;
+            libpcre2-8) printf '%s\n' 10.47 ;;
+            zlib) printf '%s\n' 1.3.2 ;;
             *) echo "Unexpected version package: $2" >&2; exit 1 ;;
         esac
         ;;
     --exists)
         ;;
     --cflags)
-        printf '%s\n' "-I$FIXTURE_PREFIX/include -I$FIXTURE_PREFIX/include/glib-2.0 -I$FIXTURE_PREFIX/include/cairo -I$FIXTURE_PREFIX/include/atk -I$FIXTURE_PREFIX/include/epoxy -I$FIXTURE_PREFIX/include/fontconfig -I$FIXTURE_PREFIX/include/freetype2 -I$FIXTURE_PREFIX/include/gdk-pixbuf -I$FIXTURE_PREFIX/include/graphene-1.0 -I$FIXTURE_PREFIX/include/pango"
+        printf '%s\n' "-I$FIXTURE_PREFIX/include -I$FIXTURE_PREFIX/include/glib-2.0 -I$FIXTURE_PREFIX/include/cairo -I$FIXTURE_PREFIX/include/atk -I$FIXTURE_PREFIX/include/epoxy -I$FIXTURE_PREFIX/include/fontconfig -I$FIXTURE_PREFIX/include/freetype2 -I$FIXTURE_PREFIX/include/fribidi -I$FIXTURE_PREFIX/include/gdk-pixbuf -I$FIXTURE_PREFIX/include/graphene-1.0 -I$FIXTURE_PREFIX/include/gobject-introspection-1.0 -I$FIXTURE_PREFIX/include/harfbuzz -I$FIXTURE_PREFIX/include/pango -I$FIXTURE_PREFIX/include/unicode"
         ;;
     --libs)
         # Both real package groups have libraries; keep the fixture faithful so
@@ -216,20 +242,25 @@ test -n "$output"
 while IFS= read -r include
 do
     case "$include" in
-        ffi.h|ffitarget.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        ffi.h|ffitarget.h|pcre2.h|pcre2posix.h|zconf.h|zlib.h) header="$FIXTURE_PREFIX/include/$include" ;;
         jconfig.h|jerror.h|jmorecfg.h|jpeglib.h) header="$FIXTURE_PREFIX/include/$include" ;;
         png.h) header="$FIXTURE_PREFIX/include/$include" ;;
         tiff.h|tiffconf.h|tiffio.h|tiffvers.h) header="$FIXTURE_PREFIX/include/$include" ;;
-        glib.h) header="$FIXTURE_PREFIX/include/glib-2.0/$include" ;;
+        glib.h|glib-object.h|gmodule.h) header="$FIXTURE_PREFIX/include/glib-2.0/$include" ;;
+        gio/gio.h) header="$FIXTURE_PREFIX/include/glib-2.0/$include" ;;
         cairo.h) header="$FIXTURE_PREFIX/include/cairo/$include" ;;
         epoxy/gl.h) header="$FIXTURE_PREFIX/include/$include" ;;
         fontconfig/fontconfig.h) header="$FIXTURE_PREFIX/include/$include" ;;
         ft2build.h) header="$FIXTURE_PREFIX/include/freetype2/$include" ;;
         freetype/freetype.h) header="$FIXTURE_PREFIX/include/freetype2/$include" ;;
+        fribidi.h) header="$FIXTURE_PREFIX/include/fribidi/$include" ;;
         atk/atk.h) header="$FIXTURE_PREFIX/include/$include" ;;
         gdk-pixbuf/gdk-pixbuf.h) header="$FIXTURE_PREFIX/include/$include" ;;
         graphene.h) header="$FIXTURE_PREFIX/include/graphene-1.0/$include" ;;
-        pango/pango.h|pango/pangofc-fontmap.h|pango/pangoft2.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        girepository.h) header="$FIXTURE_PREFIX/include/gobject-introspection-1.0/$include" ;;
+        hb.h) header="$FIXTURE_PREFIX/include/harfbuzz/$include" ;;
+        pango/pango.h|pango/pangocairo.h|pango/pangofc-fontmap.h|pango/pangoft2.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        unicode/uversion.h) header="$FIXTURE_PREFIX/include/$include" ;;
         *) continue ;;
     esac
     test -f "$header" || {
@@ -244,7 +275,7 @@ chmod +x "$prefix/bin/pkgconf" "$prefix/bin/python3" \
 
 export FIXTURE_PREFIX="$prefix"
 CC="$fixture/cc" bash "$verify_gdbus" "$prefix"
-CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2
+CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2
 
 rm "$prefix/share/glib-2.0/codegen/codegen_main.py"
 if CC="$fixture/cc" bash "$verify_gdbus" "$prefix" >"$fixture/error.log" 2>&1; then
@@ -266,15 +297,31 @@ def codegen_main():
 EOF
 
 rm "$prefix/include/ffi.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected missing libffi header to fail' >&2
     exit 1
 fi
 grep -Fq 'missing the libffi developer header: include/ffi.h' "$fixture/error.log"
 : > "$prefix/include/ffi.h"
 
+rm "$prefix/include/pcre2.h"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete PCRE2 developer closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'missing a PCRE2 developer header: include/pcre2.h' "$fixture/error.log"
+: > "$prefix/include/pcre2.h"
+
+rm "$prefix/include/zconf.h"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete zlib developer closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'missing a zlib developer header: include/zconf.h' "$fixture/error.log"
+: > "$prefix/include/zconf.h"
+
 rm "$prefix/include/jconfig.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete libjpeg developer closure to fail' >&2
     exit 1
 fi
@@ -282,7 +329,7 @@ grep -Fq 'missing a libjpeg developer header: include/jconfig.h' "$fixture/error
 : > "$prefix/include/jconfig.h"
 
 rm "$prefix/include/tiffconf.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete libtiff developer closure to fail' >&2
     exit 1
 fi
@@ -290,7 +337,7 @@ grep -Fq 'missing a libtiff developer header: include/tiffconf.h' "$fixture/erro
 : > "$prefix/include/tiffconf.h"
 
 rm "$prefix/include/fontconfig/fontconfig.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete Fontconfig developer closure to fail' >&2
     exit 1
 fi
@@ -298,7 +345,7 @@ grep -Fq 'missing the fontconfig developer header: include/fontconfig/fontconfig
 : > "$prefix/include/fontconfig/fontconfig.h"
 
 rm "$prefix/include/freetype2/ft2build.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete FreeType developer closure to fail' >&2
     exit 1
 fi
@@ -306,7 +353,7 @@ grep -Fq 'missing the FreeType developer header: include/freetype2/ft2build.h' "
 : > "$prefix/include/freetype2/ft2build.h"
 
 rm "$prefix/share/gir-1.0/Gio-2.0.gir"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete GTK GIR closure to fail' >&2
     exit 1
 fi
@@ -314,15 +361,24 @@ grep -Fq 'Missing GIR include: Gio-2.0.gir' "$fixture/error.log"
 install_gir Gio 2.0
 
 rm "$prefix/lib/girepository-1.0/Pango-1.0.typelib"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected missing compiled GTK typelib to fail' >&2
     exit 1
 fi
 grep -Fq 'Missing compiled typelib: Pango-1.0.typelib' "$fixture/error.log"
 install_gir Pango 1.0
 
+rm "$prefix/include/gobject-introspection-1.0/girepository.h"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete GObject Introspection developer closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'cannot compile and link the gobject-introspection developer closure' \
+    "$fixture/error.log"
+: > "$prefix/include/gobject-introspection-1.0/girepository.h"
+
 rm "$prefix/include/pango/pango.h"
-if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 10.47 1.3.2 >"$fixture/error.log" 2>&1; then
     echo 'Expected incomplete GTK developer closure to fail' >&2
     exit 1
 fi

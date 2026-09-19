@@ -32,9 +32,21 @@
               href="https://download.gnome.org/sources/" />
   <repository type="tarball" name="hicolor"
               href="https://icon-theme.freedesktop.org/releases/" />
+  <repository type="tarball" name="zlib"
+              href="https://zlib.net/fossils/" />
 
  <include href="https://raw.githubusercontent.com/GNOME/gtk-osx/0889e034206c1019e408cff7e9f426fccd5e034e/modulesets-stable/gtk-osx.modules"/>
  <!--include href="/Users/john/Development/GTK-OSX/gtk-osx-build/modulesets-stable/gtk-osx.modules"/-->
+
+  <!-- The reviewed refresh base contains zlib 1.3.2 libraries and pkg-config
+       data but not its public headers. Keep this output-only module separate
+       so ordinary builds retain gtk-osx's dependency resolution. -->
+  <autotools id="zlib-gtk4-refresh" autogen-sh="configure">
+    <branch repo="zlib"
+            module="zlib-1.3.2.tar.xz"
+            version="1.3.2"
+            hash="sha256:d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3" />
+  </autotools>
 
   <!-- Keep this GTK definition in sync with GTK_OSX_REF in the dependency workflow.
        It overrides the included module for the macOS remap fix and the following

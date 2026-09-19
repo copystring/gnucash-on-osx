@@ -86,6 +86,7 @@ lib/libgmp.dylib lib/libgmp.10.dylib
 lib/libgnutls.dylib lib/libgnutls.30.dylib
 lib/libgobject-2.0.dylib lib/libgobject-2.0.0.dylib
 lib/libgpg-error.dylib lib/libgpg-error.0.dylib
+lib/libgirepository-1.0.dylib lib/libgirepository-1.0.1.dylib
 lib/libgthread-2.0.dylib lib/libgthread-2.0.0.dylib
 lib/libgtk-4.dylib lib/libgtk-4.1.dylib
 lib/libguile-3.0.dylib lib/libguile-3.0.1.dylib
@@ -112,6 +113,9 @@ lib/libpango-1.0.dylib lib/libpango-1.0.0.dylib
 lib/libpangocairo-1.0.dylib lib/libpangocairo-1.0.0.dylib
 lib/libpangoft2-1.0.dylib lib/libpangoft2-1.0.0.dylib
 lib/libpcre2-8.dylib lib/libpcre2-8.0.dylib
+lib/libpcre2-16.dylib lib/libpcre2-16.0.dylib
+lib/libpcre2-32.dylib lib/libpcre2-32.0.dylib
+lib/libpcre2-posix.dylib lib/libpcre2-posix.3.dylib
 lib/libpixman-1.dylib lib/libpixman-1.0.dylib
 lib/libpkgconf.dylib lib/libpkgconf.7.dylib
 lib/libpng16.dylib lib/libpng16.16.dylib
@@ -144,6 +148,7 @@ include/freetype2/
 include/fribidi/
 include/ffi.h include/ffitarget.h
 include/gmp.h
+include/gobject-introspection-1.0/
 include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h
 include/gdk-pixbuf-2.0/
 include/gio-unix-2.0/
@@ -159,9 +164,11 @@ include/libpng16/
 include/libxml2/
 include/pango-1.0/
 include/pixman-1
+include/pcre2.h include/pcre2posix.h
 include/python3.14/
 include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h
 include/unicode/
+include/zconf.h include/zlib.h
 share/aqbanking/
 share/chipcard/
 share/fontconfig/

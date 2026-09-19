@@ -299,6 +299,8 @@ jobs:
           require_version cairo 1.18.4
           require_version cairo-gobject 1.18.4
           require_version libffi 3.5.2
+          require_version libpcre2-8 10.47
+          require_version zlib 1.3.2
           require_version fontconfig 2.17.1
           require_version libxml-2.0 2.15.2
           require_version libjpeg 3.1.4.1
@@ -340,11 +342,12 @@ jobs:
           GTK4_REFRESH_FONTCONFIG_XML_BACKEND: libxml2
         run: |
           set -euo pipefail
-          # The published runtime archive contains libffi, fontconfig, libjpeg,
-          # and libtiff libraries and .pc files but predates their developer
-          # headers and GLib's installed gdbus-codegen launcher. Materialize the
+          # The published runtime archive contains libffi, PCRE2, zlib,
+          # fontconfig, libjpeg, and libtiff libraries and .pc files but
+          # predates their developer headers and GLib's installed
+          # gdbus-codegen launcher. Materialize the
           # original launcher template from the same pinned GLib 2.88.0 source,
-          # then rebuild only those four pinned leaf libraries. The current GI
+          # then rebuild only those pinned leaf libraries. The current GI
           # release no longer installs GLib's GIRs: rebuild the original pinned
           # introspection producers in dependency order after the GI tools.
           glib_archive="$RUNNER_TEMP/glib-2.88.0.tar.xz"
@@ -363,11 +366,14 @@ jobs:
           "$JHBUILD" run bash \
             "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-gdbus-codegen.sh" \
             "$ROOT_DIR/inst"
-          for module in libffi fontconfig libjpeg libtiff
+          for module in libffi libpcre2 zlib-gtk4-refresh fontconfig libjpeg libtiff libepoxy
           do
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
           done
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
+            "$ROOT_DIR/inst" 3.5.2 10.47 1.3.2 --skip-gir
           for module in \
             gobject-introspection \
             glib \
@@ -379,13 +385,12 @@ jobs:
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
           done
-          "$JHBUILD" --no-interact --exit-on-error updateone libepoxy
-          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network libepoxy
           test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
           test -x "$ROOT_DIR/inst/bin/g-ir-compiler"
           test -d "$ROOT_DIR/inst/include/gobject-introspection-1.0"
           test -d "$ROOT_DIR/inst/share/gir-1.0"
           test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.dylib"
+          test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.1.dylib"
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion glib-2.0)" = 2.88.0
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion harfbuzz)" = 13.2.1
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion pango)" = 1.57.1
@@ -395,7 +400,7 @@ jobs:
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion epoxy)" = 1.5.10
           "$JHBUILD" run bash \
             "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
-            "$ROOT_DIR/inst" 3.5.2
+            "$ROOT_DIR/inst" 3.5.2 10.47 1.3.2
           "$JHBUILD" --no-interact --exit-on-error updateone gtk-4
           "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network gtk-4
           test -f "$ROOT_DIR/inst/include/ffi.h"
