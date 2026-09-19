@@ -53,7 +53,7 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
             check=False,
         )
 
-    def configured_modulesets(self, docs_moduleset=None):
+    def configured_modulesets(self, docs_moduleset=None, deployment_target=None):
         environment = {
             "MODULESET": str(BASE_MODULESET),
             "HOME": "/tmp/home",
@@ -63,16 +63,29 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
         }
         if docs_moduleset:
             environment["DOCS_MODULESET"] = str(docs_moduleset)
+        if deployment_target is not None:
+            environment["MACOSX_DEPLOYMENT_TARGET"] = deployment_target
+        setup_sdk = mock.Mock()
         namespace = {
             "os": os,
-            "setup_sdk": lambda: None,
+            "_target": "26.6",
+            "setup_sdk": setup_sdk,
             "append_autogenargs": lambda *_args: None,
             "module_extra_env": {},
             "module_cmakeargs": {},
         }
         with mock.patch.dict(os.environ, environment, clear=True):
             exec(JHBUILD_CONFIG.read_text(encoding="utf-8"), namespace)
+        setup_sdk.assert_called_once_with(
+            target=deployment_target if deployment_target is not None else "26.6"
+        )
         return namespace["moduleset"]
+
+    def test_explicit_deployment_target_preserves_archive_contract(self):
+        self.assertEqual(
+            self.configured_modulesets(deployment_target="26.5"),
+            str(BASE_MODULESET),
+        )
 
     def test_blank_inputs_leave_the_tarball_moduleset_unchanged(self):
         with tempfile.TemporaryDirectory() as temporary:
