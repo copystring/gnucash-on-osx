@@ -16,5 +16,5 @@ jobs:
     uses: ./.github/workflows/gtk4-macos-dependencies.yml
     with:
       gnucash_repository: copystring/gnucash
-      gnucash_ref: 32b1c9b0cf9d1e28b5a6f98ff2019a5d8b9c3649
+      gnucash_ref: a7f4c0e429ca71074581738090ec170d7e00ee59
       gtk_refresh: true

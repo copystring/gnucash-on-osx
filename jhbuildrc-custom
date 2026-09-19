@@ -1,6 +1,8 @@
 # -*- mode: python -*-
 
-setup_sdk()
+# The refresh workflow preserves the validated consumer archive's deployment
+# target. Normal builds retain gtk-osx's native default target.
+setup_sdk(target=os.environ.get('MACOSX_DEPLOYMENT_TARGET', _target))
 
 if 'PREFIX' in os.environ:
     prefix = os.path.join(os.environ['PREFIX'], 'inst')
