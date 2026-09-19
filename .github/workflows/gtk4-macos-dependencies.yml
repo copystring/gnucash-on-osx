@@ -49,6 +49,7 @@ jobs:
       GTEST_URL: https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
       GTEST_SHA256: 65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
       REFRESH_BASE_RECIPE_REF: c144445a3e021a3743b70b46119533995c588bce
+      REFRESH_BASE_MANIFEST_SHA256: 46c7c7962081bf255197954e7810080ad04120bcd346bbd905a6956021c1a3cd
       REFRESH_BASE_URL: https://github.com/copystring/gnucash-on-osx/releases/download/gtk4-dependencies-20260906-c144445/gnucash-future-gtk4-mac-dependencies.tar.xz
       REFRESH_BASE_SHA256: 2938aed05574623ff6acf29698c8d7527c1b41084d4aca7e58b5fd8b1fcc9720
       REFRESH_BASE_ARCH: arm64
@@ -115,6 +116,20 @@ jobs:
             printf '%s\n' "- Current fingerprint: ${{ steps.toolchain.outputs.fingerprint }}"
             printf '%s\n' "- Refresh deployment target: $REFRESH_BASE_MIN_OS"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate GTK4 refresh input recipe
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" fetch \
+            --no-tags --depth=1 origin "$REFRESH_BASE_RECIPE_REF"
+          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" cat-file -e \
+            "$REFRESH_BASE_RECIPE_REF^{commit}"
+          output_recipe_ref="$(git -C "$GITHUB_WORKSPACE/gnucash-on-osx" rev-parse HEAD)"
+          python3 "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-recipe.py" \
+            "$GITHUB_WORKSPACE/gnucash-on-osx" \
+            "$REFRESH_BASE_RECIPE_REF" "$output_recipe_ref" \
+            "$REFRESH_BASE_MANIFEST_SHA256"
 
       - name: Restore validated GTK4 dependencies
         id: gtk4-dependencies-cache
@@ -264,42 +279,6 @@ jobs:
         if: inputs.gtk_refresh == true
         run: |
           set -euo pipefail
-          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" fetch --no-tags --depth=1 origin "$REFRESH_BASE_RECIPE_REF"
-          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" cat-file -e "$REFRESH_BASE_RECIPE_REF^{commit}"
-          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" diff --exit-code \
-            "$REFRESH_BASE_RECIPE_REF" -- dependencies-gtk4.txt
-          python3 - "$GITHUB_WORKSPACE/gnucash-on-osx" "$REFRESH_BASE_RECIPE_REF" <<'PY'
-          import subprocess
-          import sys
-          import xml.etree.ElementTree as ET
-
-          checkout, baseline = sys.argv[1:]
-          current = ET.parse(f"{checkout}/modulesets/gnucash.modules").getroot()
-          baseline_xml = subprocess.check_output(
-              ["git", "-C", checkout, "show", f"{baseline}:modulesets/gnucash.modules"],
-              text=True)
-          base = ET.fromstring(baseline_xml)
-
-          def gtk_module(root):
-              return next(module for module in root if module.attrib.get("id") == "gtk-4")
-
-          expected_new = [
-              "gtk-4.22.1-macos-toplevel-remap.patch",
-              "gtk-4.22.1-column-view-focus-column-ownership.patch",
-              "gtk-4.22.1-window-deferred-focus-ownership.patch",
-          ]
-          old, new = gtk_module(base), gtk_module(current)
-          if old.attrib != new.attrib:
-              raise SystemExit("GTK refresh base has different GTK module arguments")
-          if old.find("branch").attrib != new.find("branch").attrib:
-              raise SystemExit("GTK refresh base has different GTK source identity")
-          if [item.attrib["package"] for item in old.find("dependencies")] != [item.attrib["package"] for item in new.find("dependencies")]:
-              raise SystemExit("GTK refresh base has different GTK dependencies")
-          if [item.attrib["file"] for item in old.find("branch").findall("patch")] != expected_new[:1]:
-              raise SystemExit("GTK refresh base has an unexpected GTK patch set")
-          if [item.attrib["file"] for item in new.find("branch").findall("patch")] != expected_new:
-              raise SystemExit("GTK refresh mode permits only the audited ownership patches")
-          PY
           archive="$RUNNER_TEMP/gtk4-refresh-base.tar.xz"
           curl --fail --location --show-error "$REFRESH_BASE_URL" --output "$archive"
           echo "$REFRESH_BASE_SHA256  $archive" | shasum -a 256 -c -
@@ -384,6 +363,7 @@ jobs:
           {
             printf '### GTK refresh base\n\n'
             printf '%s\n' "- Recipe: $REFRESH_BASE_RECIPE_REF"
+            printf '%s\n' "- Input manifest SHA-256: $REFRESH_BASE_MANIFEST_SHA256"
             printf '%s\n' "- Archive: $REFRESH_BASE_URL"
             printf '%s\n' "- Archive SHA-256: $REFRESH_BASE_SHA256"
             printf '%s\n' "- Toolchain fingerprint: $REFRESH_BASE_TOOLCHAIN_FINGERPRINT"

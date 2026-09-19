@@ -1,6 +1,6 @@
 name: Reviewed GTK4 macOS refresh
-# Retry the reviewed refresh with the libffi developer-header closure and the
-# byte-safe gtk-osx-docbook install environment.
+# Retry the reviewed refresh with a separately pinned input-manifest contract
+# and the audited libffi-header output manifest.
 
 on:
   push:

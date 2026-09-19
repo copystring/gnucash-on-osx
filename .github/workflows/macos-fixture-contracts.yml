@@ -14,6 +14,7 @@ on:
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - verify-gtk4-refresh-build-closure.sh
+      - verify-gtk4-refresh-recipe.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
@@ -21,6 +22,7 @@ on:
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
+      - tests/test-verify-gtk4-refresh-recipe.py
       - tests/test-verify-macos-app-bundle.sh
       - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
@@ -41,6 +43,7 @@ on:
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - verify-gtk4-refresh-build-closure.sh
+      - verify-gtk4-refresh-recipe.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
@@ -48,6 +51,7 @@ on:
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
+      - tests/test-verify-gtk4-refresh-recipe.py
       - tests/test-verify-macos-app-bundle.sh
       - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
@@ -81,4 +85,5 @@ jobs:
           bash tests/test-verify-jhbuild-deployment-target.sh
           bash tests/test-verify-jhbuild-prefix.sh
           bash tests/test-verify-gtk4-refresh-build-closure.sh
+          python3 tests/test-verify-gtk4-refresh-recipe.py
           bash tests/test-verify-macos-app-bundle.sh
