@@ -1,6 +1,6 @@
 name: Reviewed GTK4 macOS refresh
-# Retry the reviewed refresh with a separately pinned input-manifest contract
-# and the audited libffi-header output manifest.
+# Retry the reviewed refresh with the archived GLib codegen payload restored as
+# its self-contained gdbus-codegen launcher before rebuilding GTK.
 
 on:
   push:

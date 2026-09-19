@@ -11,8 +11,10 @@ import xml.etree.ElementTree as ET
 
 BASE_MANIFEST_PATH = "dependencies-gtk4.txt"
 MODULESET_PATH = "modulesets/gnucash.modules"
-OUTPUT_ONLY_MANIFEST_LINE = b"include/ffi.h include/ffitarget.h\n"
-OUTPUT_MANIFEST_ANCHOR = b"include/fribidi/\n"
+OUTPUT_MANIFEST_ADDITIONS = (
+    (b"bin/ctest\n", b"bin/gdbus-codegen\n"),
+    (b"include/fribidi/\n", b"include/ffi.h include/ffitarget.h\n"),
+)
 EXPECTED_BASE_PATCHES = ["gtk-4.22.1-macos-toplevel-remap.patch"]
 EXPECTED_OUTPUT_PATCHES = [
     *EXPECTED_BASE_PATCHES,
@@ -27,14 +29,16 @@ def git_bytes(checkout, *arguments):
 
 
 def expected_output_manifest(base_manifest):
-    if base_manifest.count(OUTPUT_MANIFEST_ANCHOR) != 1:
-        raise ValueError("GTK refresh input manifest has an unexpected include/fribidi anchor")
-    if OUTPUT_ONLY_MANIFEST_LINE in base_manifest.splitlines(keepends=True):
-        raise ValueError("GTK refresh input manifest already contains the output-only libffi headers")
-    return base_manifest.replace(
-        OUTPUT_MANIFEST_ANCHOR,
-        OUTPUT_MANIFEST_ANCHOR + OUTPUT_ONLY_MANIFEST_LINE,
-        1)
+    output_manifest = base_manifest
+    for anchor, addition in OUTPUT_MANIFEST_ADDITIONS:
+        if output_manifest.count(anchor) != 1:
+            raise ValueError(
+                f"GTK refresh input manifest has an unexpected {anchor.strip()!r} anchor")
+        if addition in output_manifest.splitlines(keepends=True):
+            raise ValueError(
+                f"GTK refresh input manifest already contains output-only {addition.strip()!r}")
+        output_manifest = output_manifest.replace(anchor, anchor + addition, 1)
+    return output_manifest
 
 
 def verify_manifest(base_manifest, output_manifest, expected_sha256):
@@ -52,7 +56,7 @@ def verify_manifest(base_manifest, output_manifest, expected_sha256):
             tofile="dependencies-gtk4.txt"))
         raise ValueError(
             "GTK refresh output manifest differs from the pinned input manifest "
-            f"beyond the audited libffi headers:\n{difference}")
+            f"beyond the audited developer-closure additions:\n{difference}")
 
 
 def gtk_module(root):

@@ -2,6 +2,7 @@
 
 import hashlib
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -21,18 +22,18 @@ BASE_MANIFEST_SHA256 = "46c7c7962081bf255197954e7810080ad04120bcd346bbd905a69560
 
 class RefreshRecipeTests(unittest.TestCase):
     def test_manifest_allows_only_audited_output_headers(self):
-        base = b"include/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
-        output = (b"include/freetype2/\ninclude/fribidi/\n" +
-                  RECIPE.OUTPUT_ONLY_MANIFEST_LINE + b"include/gmp.h\n")
+        base = (b"bin/cmake\nbin/ctest\nbin/gettext\n"
+                b"include/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n")
+        output = RECIPE.expected_output_manifest(base)
         RECIPE.verify_manifest(base, output, hashlib.sha256(base).hexdigest())
 
-        with self.assertRaisesRegex(ValueError, "beyond the audited libffi headers"):
+        with self.assertRaisesRegex(ValueError, "beyond the audited developer-closure"):
             RECIPE.verify_manifest(base, output + b"include/unreviewed.h\n",
                                    hashlib.sha256(base).hexdigest())
 
     def test_manifest_rejects_wrong_input_sha(self):
-        base = b"include/fribidi/\n"
-        output = base + RECIPE.OUTPUT_ONLY_MANIFEST_LINE
+        base = b"bin/ctest\ninclude/fribidi/\n"
+        output = RECIPE.expected_output_manifest(base)
         with self.assertRaisesRegex(ValueError, "input manifest SHA-256 mismatch"):
             RECIPE.verify_manifest(base, output, "0" * 64)
 
@@ -53,7 +54,7 @@ class RefreshRecipeTests(unittest.TestCase):
             subprocess.run(
                 ["git", "-C", str(checkout), "config", "user.name", "Fixture"], check=True)
             (checkout / "modulesets").mkdir()
-            base_manifest = b"include/fribidi/\n"
+            base_manifest = b"bin/ctest\ninclude/fribidi/\n"
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(base_manifest)
             (checkout / RECIPE.MODULESET_PATH).write_text(
                 self.moduleset(RECIPE.EXPECTED_BASE_PATCHES), encoding="utf-8")
@@ -64,7 +65,7 @@ class RefreshRecipeTests(unittest.TestCase):
                 ["git", "-C", str(checkout), "rev-parse", "HEAD"], text=True).strip()
 
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(
-                base_manifest + RECIPE.OUTPUT_ONLY_MANIFEST_LINE)
+                RECIPE.expected_output_manifest(base_manifest))
             (checkout / RECIPE.MODULESET_PATH).write_text(
                 self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES), encoding="utf-8")
             subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
@@ -76,7 +77,7 @@ class RefreshRecipeTests(unittest.TestCase):
             # Simulate a later CRLF working-tree mutation. The contract remains
             # tied to the two explicit, reviewed Git revisions.
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(
-                (base_manifest + RECIPE.OUTPUT_ONLY_MANIFEST_LINE).replace(b"\n", b"\r\n"))
+                RECIPE.expected_output_manifest(base_manifest).replace(b"\n", b"\r\n"))
             RECIPE.verify_checkout(
                 checkout, baseline, output_revision,
                 hashlib.sha256(base_manifest).hexdigest())
@@ -98,7 +99,7 @@ class RefreshRecipeTests(unittest.TestCase):
             self.skipTest("pinned refresh base commit is unavailable in this checkout")
         completed = subprocess.run(
             [sys.executable, str(SCRIPT), str(REPOSITORY), BASELINE,
-             "HEAD", BASE_MANIFEST_SHA256],
+             os.environ.get("OUTPUT_RECIPE_REVISION", "HEAD"), BASE_MANIFEST_SHA256],
             text=True, capture_output=True, check=False)
         self.assertEqual(completed.returncode, 0, completed.stderr)
 

@@ -5,21 +5,26 @@ set -euo pipefail
 test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository="$(cd -- "$test_dir/.." && pwd)"
 verify="$repository/verify-gtk4-refresh-build-closure.sh"
+verify_gdbus="$repository/verify-gtk4-refresh-gdbus-codegen.sh"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/gtk4-refresh-closure-fixture.XXXXXX")"
 trap 'rm -rf "$fixture"' EXIT
 
 grep -Fxq 'include/ffi.h include/ffitarget.h' \
     "$repository/dependencies-gtk4.txt"
+grep -Fxq 'bin/gdbus-codegen' "$repository/dependencies-gtk4.txt"
 grep -Fxq "module_extra_env['gtk-osx-docbook'] = {'LC_ALL':'C'}" \
     "$repository/jhbuildrc-custom"
 
 workflow="$repository/.github/workflows/gtk4-macos-dependencies.yml"
 libffi_line="$(grep -n 'buildone --force --no-network libffi' "$workflow" | cut -d: -f1)"
+gdbus_line="$(grep -n 'verify-gtk4-refresh-gdbus-codegen.sh' "$workflow" | cut -d: -f1)"
 verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1)"
 gi_line="$(grep -n 'for module in gobject-introspection libepoxy gtk-4' "$workflow" | cut -d: -f1)"
 test -n "$libffi_line"
+test -n "$gdbus_line"
 test -n "$verify_line"
 test -n "$gi_line"
+test "$gdbus_line" -lt "$libffi_line"
 test "$libffi_line" -lt "$verify_line"
 test "$verify_line" -lt "$gi_line"
 
@@ -30,7 +35,8 @@ mkdir -p "$prefix/bin" \
     "$prefix/include/gdk-pixbuf/gdk-pixbuf" \
     "$prefix/include/glib-2.0" \
     "$prefix/include/graphene-1.0" \
-    "$prefix/include/pango"
+    "$prefix/include/pango" \
+    "$prefix/share/glib-2.0/codegen"
 for header in \
     ffi.h \
     ffitarget.h \
@@ -43,6 +49,41 @@ for header in \
 do
     : > "$prefix/include/$header"
 done
+
+host_python="$(command -v python3 || command -v python)"
+cat > "$prefix/bin/python3" <<EOF
+#!/usr/bin/env bash
+exec "$host_python" "\$@"
+EOF
+
+cat > "$prefix/share/glib-2.0/codegen/__init__.py" <<'EOF'
+EOF
+cat > "$prefix/share/glib-2.0/codegen/config.py" <<'EOF'
+MAJOR_VERSION = 2
+MINOR_VERSION = 88
+EOF
+cat > "$prefix/share/glib-2.0/codegen/parser.py" <<'EOF'
+EOF
+cat > "$prefix/share/glib-2.0/codegen/codegen_main.py" <<'EOF'
+def codegen_main():
+    import argparse, pathlib
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--generate-c-code', required=True)
+    parser.add_argument('xml')
+    arguments = parser.parse_args()
+    output = pathlib.Path(arguments.generate_c_code)
+    output.with_suffix('.h').write_text('#pragma once\n')
+    output.with_suffix('.c').write_text('#include "gtk4-refresh-gdbus.h"\nint fixture(void) { return 0; }\n')
+    return 0
+EOF
+cat > "$prefix/bin/gdbus-codegen" <<'EOF'
+#!/usr/bin/env python3
+import os, sys
+path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'share', 'glib-2.0'))
+sys.path.insert(0, path)
+from codegen import codegen_main
+sys.exit(codegen_main.codegen_main())
+EOF
 
 cat > "$prefix/bin/pkgconf" <<'EOF'
 #!/usr/bin/env bash
@@ -104,12 +145,33 @@ do
         exit 1
     }
 done < <(sed -n 's/^#include <\([^>]*\)>/\1/p' "$source_file")
-: > "$output"
+printf 'fixture object\n' > "$output"
 EOF
-chmod +x "$prefix/bin/pkgconf" "$fixture/cc"
+chmod +x "$prefix/bin/pkgconf" "$prefix/bin/python3" \
+    "$prefix/bin/gdbus-codegen" "$fixture/cc"
 
 export FIXTURE_PREFIX="$prefix"
+CC="$fixture/cc" bash "$verify_gdbus" "$prefix"
 CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2
+
+rm "$prefix/share/glib-2.0/codegen/codegen_main.py"
+if CC="$fixture/cc" bash "$verify_gdbus" "$prefix" >"$fixture/error.log" 2>&1; then
+    echo 'Expected missing gdbus-codegen module to fail' >&2
+    exit 1
+fi
+grep -Fq 'missing the gdbus-codegen module: codegen_main.py' "$fixture/error.log"
+cat > "$prefix/share/glib-2.0/codegen/codegen_main.py" <<'EOF'
+def codegen_main():
+    import argparse, pathlib
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--generate-c-code', required=True)
+    parser.add_argument('xml')
+    arguments = parser.parse_args()
+    output = pathlib.Path(arguments.generate_c_code)
+    output.with_suffix('.h').write_text('#pragma once\n')
+    output.with_suffix('.c').write_text('#include "gtk4-refresh-gdbus.h"\nint fixture(void) { return 0; }\n')
+    return 0
+EOF
 
 rm "$prefix/include/ffi.h"
 if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then

@@ -11,14 +11,17 @@ on:
       - modulesets/gnucash.modules
       - modulesets/generate-docs-overlay.py
       - jhbuildrc-custom
+      - materialize-gdbus-codegen.py
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - verify-gtk4-refresh-build-closure.sh
+      - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-recipe.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
+      - tests/test-materialize-gdbus-codegen.py
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
@@ -40,14 +43,17 @@ on:
       - modulesets/gnucash.modules
       - modulesets/generate-docs-overlay.py
       - jhbuildrc-custom
+      - materialize-gdbus-codegen.py
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - verify-gtk4-refresh-build-closure.sh
+      - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-recipe.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
+      - tests/test-materialize-gdbus-codegen.py
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
@@ -82,6 +88,7 @@ jobs:
           bash tests/test-depstarball-bundle-inputs.sh
           python3 tests/test-generate-docs-overlay.py
           python3 tests/test-macos-bundle-metadata.py
+          python3 tests/test-materialize-gdbus-codegen.py
           bash tests/test-verify-jhbuild-deployment-target.sh
           bash tests/test-verify-jhbuild-prefix.sh
           bash tests/test-verify-gtk4-refresh-build-closure.sh

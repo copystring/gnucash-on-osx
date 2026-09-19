@@ -48,6 +48,9 @@ jobs:
       CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
       GTEST_URL: https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
       GTEST_SHA256: 65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
+      GLIB_SOURCE_URL: https://download.gnome.org/sources/glib/2.88/glib-2.88.0.tar.xz
+      GLIB_SOURCE_SHA256: 3546251ccbb3744d4bc4eb48354540e1f6200846572bab68e3a2b7b2b64dfd07
+      GDBUS_CODEGEN_TEMPLATE_SHA256: 50db8febc3254cf34f65c0a8fe44dc97e8f334c8cb2f3822c80d042fc8a8a8d5
       REFRESH_BASE_RECIPE_REF: c144445a3e021a3743b70b46119533995c588bce
       REFRESH_BASE_MANIFEST_SHA256: 46c7c7962081bf255197954e7810080ad04120bcd346bbd905a6956021c1a3cd
       REFRESH_BASE_URL: https://github.com/copystring/gnucash-on-osx/releases/download/gtk4-dependencies-20260906-c144445/gnucash-future-gtk4-mac-dependencies.tar.xz
@@ -330,9 +333,25 @@ jobs:
         run: |
           set -euo pipefail
           # The published runtime archive contains libffi and its .pc file but
-          # predates the developer headers required to rebuild GI. Rebuild this
-          # one pinned prerequisite through GTK-OSX, then prove the remaining
-          # archived developer closure before starting the three large modules.
+          # predates its developer headers and GLib's installed gdbus-codegen
+          # launcher. Materialize the original launcher template from the same
+          # pinned GLib 2.88.0 source, then rebuild only libffi.
+          glib_archive="$RUNNER_TEMP/glib-2.88.0.tar.xz"
+          gdbus_template="$RUNNER_TEMP/gdbus-codegen.in"
+          curl --fail --location --show-error --retry 5 --retry-all-errors \
+            --retry-delay 5 --connect-timeout 30 \
+            "$GLIB_SOURCE_URL" --output "$glib_archive"
+          echo "$GLIB_SOURCE_SHA256  $glib_archive" | shasum -a 256 -c -
+          tar -xJOf "$glib_archive" \
+            glib-2.88.0/gio/gdbus-2.0/codegen/gdbus-codegen.in \
+            > "$gdbus_template"
+          python3 "$GITHUB_WORKSPACE/gnucash-on-osx/materialize-gdbus-codegen.py" \
+            "$gdbus_template" "$GDBUS_CODEGEN_TEMPLATE_SHA256" \
+            "$ROOT_DIR/inst/bin/python3" "$ROOT_DIR/inst/share" \
+            "$ROOT_DIR/inst/bin/gdbus-codegen"
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-gdbus-codegen.sh" \
+            "$ROOT_DIR/inst"
           "$JHBUILD" --no-interact --exit-on-error updateone libffi
           "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network libffi
           "$JHBUILD" run bash \
