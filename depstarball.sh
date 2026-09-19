@@ -81,6 +81,11 @@ verify_gtk4_dependencies()
                 ;;
         esac
     done
+    # This runs both before packing and after the archive has been extracted
+    # and activated, so runtime-only .pc files cannot masquerade as a complete
+    # GTK build closure in the produced artifact.
+    bash "$SCRIPT_DIR/verify-gtk4-refresh-build-closure.sh" \
+        "$INST_DIR" 3.5.2
 }
 
 verify_macho_closure()

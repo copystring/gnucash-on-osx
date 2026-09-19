@@ -298,6 +298,8 @@ jobs:
           require_version cairo 1.18.4
           require_version cairo-gobject 1.18.4
           require_version libffi 3.5.2
+          require_version libjpeg 3.1.4.1
+          require_version libtiff-4 4.7.1
           require_version epoxy 1.5.10
           require_version gtk4 4.22.1
           "$ROOT_DIR/inst/bin/pkgconf" --exists gtk4-macos gwengui-gtk4 aqbanking
@@ -332,10 +334,11 @@ jobs:
         if: inputs.gtk_refresh == true
         run: |
           set -euo pipefail
-          # The published runtime archive contains libffi and its .pc file but
-          # predates its developer headers and GLib's installed gdbus-codegen
-          # launcher. Materialize the original launcher template from the same
-          # pinned GLib 2.88.0 source, then rebuild only libffi.
+          # The published runtime archive contains libffi, libjpeg, and libtiff
+          # libraries and .pc files but predates their developer headers and
+          # GLib's installed gdbus-codegen launcher. Materialize the original
+          # launcher template from the same pinned GLib 2.88.0 source, then
+          # rebuild only those three pinned leaf libraries.
           glib_archive="$RUNNER_TEMP/glib-2.88.0.tar.xz"
           gdbus_template="$RUNNER_TEMP/gdbus-codegen.in"
           curl --fail --location --show-error --retry 5 --retry-all-errors \
@@ -352,12 +355,12 @@ jobs:
           "$JHBUILD" run bash \
             "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-gdbus-codegen.sh" \
             "$ROOT_DIR/inst"
-          "$JHBUILD" --no-interact --exit-on-error updateone libffi
-          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network libffi
-          "$JHBUILD" run bash \
-            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
-            "$ROOT_DIR/inst" 3.5.2
-          for module in gobject-introspection libepoxy gtk-4
+          for module in libffi libjpeg libtiff
+          do
+            "$JHBUILD" --no-interact --exit-on-error updateone "$module"
+            "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
+          done
+          for module in gobject-introspection libepoxy
           do
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
@@ -365,12 +368,19 @@ jobs:
           test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
           test -x "$ROOT_DIR/inst/bin/g-ir-compiler"
           test -d "$ROOT_DIR/inst/include/gobject-introspection-1.0"
-          test -f "$ROOT_DIR/inst/include/ffi.h"
-          test -f "$ROOT_DIR/inst/include/ffitarget.h"
           test -d "$ROOT_DIR/inst/share/gir-1.0"
           test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.dylib"
           test -f "$ROOT_DIR/inst/include/epoxy/gl.h"
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion epoxy)" = 1.5.10
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
+            "$ROOT_DIR/inst" 3.5.2
+          "$JHBUILD" --no-interact --exit-on-error updateone gtk-4
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network gtk-4
+          test -f "$ROOT_DIR/inst/include/ffi.h"
+          test -f "$ROOT_DIR/inst/include/ffitarget.h"
+          test -f "$ROOT_DIR/inst/include/jpeglib.h"
+          test -f "$ROOT_DIR/inst/include/tiffio.h"
           test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion gtk4)" = 4.22.1
           rebuilt_min_os="$(otool -l "$ROOT_DIR/inst/lib/libgtk-4.1.dylib" | awk '
             $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }

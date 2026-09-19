@@ -14,6 +14,10 @@ MODULESET_PATH = "modulesets/gnucash.modules"
 OUTPUT_MANIFEST_ADDITIONS = (
     (b"bin/ctest\n", b"bin/gdbus-codegen\n"),
     (b"include/fribidi/\n", b"include/ffi.h include/ffitarget.h\n"),
+    (b"include/gmp.h\n",
+     b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n"),
+    (b"include/python3.14/\n",
+     b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n"),
 )
 EXPECTED_BASE_PATCHES = ["gtk-4.22.1-macos-toplevel-remap.patch"]
 EXPECTED_OUTPUT_PATCHES = [

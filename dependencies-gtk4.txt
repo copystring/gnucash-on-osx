@@ -141,6 +141,7 @@ include/freetype2/
 include/fribidi/
 include/ffi.h include/ffitarget.h
 include/gmp.h
+include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h
 include/gdk-pixbuf-2.0/
 include/gio-unix-2.0/
 include/glib-2.0/
@@ -156,6 +157,7 @@ include/libxml2/
 include/pango-1.0/
 include/pixman-1
 include/python3.14/
+include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h
 include/unicode/
 share/aqbanking/
 share/chipcard/

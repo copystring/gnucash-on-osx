@@ -21,18 +21,27 @@ BASE_MANIFEST_SHA256 = "46c7c7962081bf255197954e7810080ad04120bcd346bbd905a69560
 
 
 class RefreshRecipeTests(unittest.TestCase):
+    @staticmethod
+    def manifest():
+        return (b"bin/cmake\nbin/ctest\nbin/gettext\n"
+                b"include/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n"
+                b"include/python3.14/\ninclude/unicode/\n")
+
     def test_manifest_allows_only_audited_output_headers(self):
-        base = (b"bin/cmake\nbin/ctest\nbin/gettext\n"
-                b"include/freetype2/\ninclude/fribidi/\ninclude/gmp.h\n")
+        base = self.manifest()
         output = RECIPE.expected_output_manifest(base)
         RECIPE.verify_manifest(base, output, hashlib.sha256(base).hexdigest())
+        self.assertIn(b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n",
+                      output)
+        self.assertIn(b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n",
+                      output)
 
         with self.assertRaisesRegex(ValueError, "beyond the audited developer-closure"):
             RECIPE.verify_manifest(base, output + b"include/unreviewed.h\n",
                                    hashlib.sha256(base).hexdigest())
 
     def test_manifest_rejects_wrong_input_sha(self):
-        base = b"bin/ctest\ninclude/fribidi/\n"
+        base = self.manifest()
         output = RECIPE.expected_output_manifest(base)
         with self.assertRaisesRegex(ValueError, "input manifest SHA-256 mismatch"):
             RECIPE.verify_manifest(base, output, "0" * 64)
@@ -54,7 +63,7 @@ class RefreshRecipeTests(unittest.TestCase):
             subprocess.run(
                 ["git", "-C", str(checkout), "config", "user.name", "Fixture"], check=True)
             (checkout / "modulesets").mkdir()
-            base_manifest = b"bin/ctest\ninclude/fribidi/\n"
+            base_manifest = self.manifest()
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(base_manifest)
             (checkout / RECIPE.MODULESET_PATH).write_text(
                 self.moduleset(RECIPE.EXPECTED_BASE_PATCHES), encoding="utf-8")

@@ -24,6 +24,30 @@ do
     fi
 done
 
+for header in \
+    include/jconfig.h \
+    include/jerror.h \
+    include/jmorecfg.h \
+    include/jpeglib.h
+do
+    if [ ! -f "$prefix/$header" ]; then
+        echo "GTK4 refresh base is missing a libjpeg developer header: $header" >&2
+        exit 1
+    fi
+done
+
+for header in \
+    include/tiff.h \
+    include/tiffconf.h \
+    include/tiffio.h \
+    include/tiffvers.h
+do
+    if [ ! -f "$prefix/$header" ]; then
+        echo "GTK4 refresh base is missing a libtiff developer header: $header" >&2
+        exit 1
+    fi
+done
+
 actual_libffi_version="$("$pkgconf" --modversion libffi)"
 if [ "$actual_libffi_version" != "$expected_libffi_version" ]; then
     echo "Expected libffi $expected_libffi_version, got $actual_libffi_version" >&2
@@ -83,6 +107,7 @@ EOF
 
 cat > "$temporary/gtk.c" <<'EOF'
 #include <atk/atk.h>
+#include <epoxy/gl.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <graphene.h>
 #include <pango/pango.h>
@@ -100,12 +125,52 @@ main(void)
 }
 EOF
 
-# These package sets mirror the pinned GTK-OSX module dependencies needed
-# before rebuilding gobject-introspection and GTK. libepoxy has no archived
-# module dependency and is rebuilt before GTK.
+cat > "$temporary/jpeg.c" <<'EOF'
+#include <stdio.h>
+#include <jpeglib.h>
+
+int
+main(void)
+{
+    struct jpeg_error_mgr error;
+    struct jpeg_decompress_struct decoder;
+    decoder.err = jpeg_std_error(&error);
+    jpeg_create_decompress(&decoder);
+    jpeg_destroy_decompress(&decoder);
+    return 0;
+}
+EOF
+
+cat > "$temporary/png.c" <<'EOF'
+#include <png.h>
+
+int
+main(void)
+{
+    return png_access_version_number() == 0;
+}
+EOF
+
+cat > "$temporary/tiff.c" <<'EOF'
+#include <tiffio.h>
+
+int
+main(void)
+{
+    return TIFFGetVersion() == NULL;
+}
+EOF
+
+# These package sets mirror the pinned GTK-OSX module dependencies used by
+# gobject-introspection and GTK. The image-library probes
+# cover GTK's active built-in JPEG, PNG, and TIFF loader dependencies; libepoxy
+# is rebuilt and included in the GTK probe before GTK itself is rebuilt.
 compile_probe gobject-introspection "$temporary/gobject-introspection.c" \
     glib-2.0 cairo libffi
 compile_probe gtk "$temporary/gtk.c" \
-    pango atk gdk-pixbuf-2.0 graphene-1.0
+    pango atk gdk-pixbuf-2.0 graphene-1.0 epoxy
+compile_probe jpeg "$temporary/jpeg.c" libjpeg
+compile_probe png "$temporary/png.c" libpng
+compile_probe tiff "$temporary/tiff.c" libtiff-4
 
 echo "Verified GTK4 refresh developer build closure."
