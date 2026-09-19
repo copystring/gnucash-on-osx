@@ -298,6 +298,8 @@ jobs:
           require_version cairo 1.18.4
           require_version cairo-gobject 1.18.4
           require_version libffi 3.5.2
+          require_version fontconfig 2.17.1
+          require_version libxml-2.0 2.15.2
           require_version libjpeg 3.1.4.1
           require_version libtiff-4 4.7.1
           require_version epoxy 1.5.10
@@ -317,6 +319,7 @@ jobs:
           PY
           test ! -e "$ROOT_DIR/inst/bin/g-ir-scanner"
           test ! -e "$ROOT_DIR/inst/include/epoxy/gl.h"
+          test -f "$ROOT_DIR/inst/include/libxml2/libxml/parser.h"
           base_archs="$(lipo -archs "$ROOT_DIR/inst/lib/libgtk-4.1.dylib")"
           case " $base_archs " in
             *" $REFRESH_BASE_ARCH "*) ;;
@@ -332,13 +335,15 @@ jobs:
 
       - name: Rebuild GTK4 refresh closure
         if: inputs.gtk_refresh == true
+        env:
+          GTK4_REFRESH_FONTCONFIG_XML_BACKEND: libxml2
         run: |
           set -euo pipefail
-          # The published runtime archive contains libffi, libjpeg, and libtiff
-          # libraries and .pc files but predates their developer headers and
-          # GLib's installed gdbus-codegen launcher. Materialize the original
-          # launcher template from the same pinned GLib 2.88.0 source, then
-          # rebuild only those three pinned leaf libraries.
+          # The published runtime archive contains libffi, fontconfig, libjpeg,
+          # and libtiff libraries and .pc files but predates their developer
+          # headers and GLib's installed gdbus-codegen launcher. Materialize the
+          # original launcher template from the same pinned GLib 2.88.0 source,
+          # then rebuild only those four pinned leaf libraries.
           glib_archive="$RUNNER_TEMP/glib-2.88.0.tar.xz"
           gdbus_template="$RUNNER_TEMP/gdbus-codegen.in"
           curl --fail --location --show-error --retry 5 --retry-all-errors \
@@ -355,7 +360,7 @@ jobs:
           "$JHBUILD" run bash \
             "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-gdbus-codegen.sh" \
             "$ROOT_DIR/inst"
-          for module in libffi libjpeg libtiff
+          for module in libffi fontconfig libjpeg libtiff
           do
             "$JHBUILD" --no-interact --exit-on-error updateone "$module"
             "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"

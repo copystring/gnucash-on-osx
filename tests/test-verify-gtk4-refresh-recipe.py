@@ -32,6 +32,7 @@ class RefreshRecipeTests(unittest.TestCase):
         output = RECIPE.expected_output_manifest(base)
         RECIPE.verify_manifest(base, output, hashlib.sha256(base).hexdigest())
         self.assertIn(b"include/epoxy/\n", output)
+        self.assertIn(b"include/fontconfig/\n", output)
         self.assertIn(b"include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h\n",
                       output)
         self.assertIn(b"include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h\n",

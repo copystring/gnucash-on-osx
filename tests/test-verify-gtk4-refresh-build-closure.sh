@@ -12,6 +12,9 @@ trap 'rm -rf "$fixture"' EXIT
 grep -Fxq 'include/ffi.h include/ffitarget.h' \
     "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/epoxy/' "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/fontconfig/' "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/freetype2/' "$repository/dependencies-gtk4.txt"
+grep -Fxq 'include/libxml2/' "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/jconfig.h include/jerror.h include/jmorecfg.h include/jpeglib.h' \
     "$repository/dependencies-gtk4.txt"
 grep -Fxq 'include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h' \
@@ -19,11 +22,18 @@ grep -Fxq 'include/tiff.h include/tiffconf.h include/tiffio.h include/tiffvers.h
 grep -Fxq 'bin/gdbus-codegen' "$repository/dependencies-gtk4.txt"
 grep -Fxq "module_extra_env['gtk-osx-docbook'] = {'LC_ALL':'C'}" \
     "$repository/jhbuildrc-custom"
+grep -Fq "if os.environ.get('GTK4_REFRESH_FONTCONFIG_XML_BACKEND') == 'libxml2':" \
+    "$repository/jhbuildrc-custom"
+grep -Fq "module_mesonargs['fontconfig'] = '-Dxml-backend=libxml2'" \
+    "$repository/jhbuildrc-custom"
 grep -Fq 'bash "$SCRIPT_DIR/verify-gtk4-refresh-build-closure.sh"' \
     "$repository/depstarball.sh"
 
 workflow="$repository/.github/workflows/gtk4-macos-dependencies.yml"
-leaf_line="$(grep -n 'for module in libffi libjpeg libtiff' "$workflow" | cut -d: -f1)"
+grep -Fq 'require_version libxml-2.0 2.15.2' "$workflow"
+grep -Fq 'test -f "$ROOT_DIR/inst/include/libxml2/libxml/parser.h"' "$workflow"
+grep -Fq 'GTK4_REFRESH_FONTCONFIG_XML_BACKEND: libxml2' "$workflow"
+leaf_line="$(grep -n 'for module in libffi fontconfig libjpeg libtiff' "$workflow" | cut -d: -f1)"
 gdbus_line="$(grep -n 'verify-gtk4-refresh-gdbus-codegen.sh' "$workflow" | cut -d: -f1)"
 verify_line="$(grep -n 'verify-gtk4-refresh-build-closure.sh' "$workflow" | cut -d: -f1)"
 gi_line="$(grep -n 'for module in gobject-introspection libepoxy' "$workflow" | cut -d: -f1)"
@@ -43,6 +53,8 @@ mkdir -p "$prefix/bin" \
     "$prefix/include/atk" \
     "$prefix/include/cairo" \
     "$prefix/include/epoxy" \
+    "$prefix/include/fontconfig" \
+    "$prefix/include/freetype2/freetype" \
     "$prefix/include/gdk-pixbuf/gdk-pixbuf" \
     "$prefix/include/glib-2.0" \
     "$prefix/include/graphene-1.0" \
@@ -63,10 +75,15 @@ for header in \
     atk/atk.h \
     cairo/cairo.h \
     epoxy/gl.h \
+    fontconfig/fontconfig.h \
+    freetype2/ft2build.h \
+    freetype2/freetype/freetype.h \
     gdk-pixbuf/gdk-pixbuf.h \
     glib-2.0/glib.h \
     graphene-1.0/graphene.h \
-    pango/pango.h
+    pango/pango.h \
+    pango/pangofc-fontmap.h \
+    pango/pangoft2.h
 do
     : > "$prefix/include/$header"
 done
@@ -119,7 +136,7 @@ case "$1" in
     --exists)
         ;;
     --cflags)
-        printf '%s\n' "-I$FIXTURE_PREFIX/include -I$FIXTURE_PREFIX/include/glib-2.0 -I$FIXTURE_PREFIX/include/cairo -I$FIXTURE_PREFIX/include/atk -I$FIXTURE_PREFIX/include/epoxy -I$FIXTURE_PREFIX/include/gdk-pixbuf -I$FIXTURE_PREFIX/include/graphene-1.0 -I$FIXTURE_PREFIX/include/pango"
+        printf '%s\n' "-I$FIXTURE_PREFIX/include -I$FIXTURE_PREFIX/include/glib-2.0 -I$FIXTURE_PREFIX/include/cairo -I$FIXTURE_PREFIX/include/atk -I$FIXTURE_PREFIX/include/epoxy -I$FIXTURE_PREFIX/include/fontconfig -I$FIXTURE_PREFIX/include/freetype2 -I$FIXTURE_PREFIX/include/gdk-pixbuf -I$FIXTURE_PREFIX/include/graphene-1.0 -I$FIXTURE_PREFIX/include/pango"
         ;;
     --libs)
         # Both real package groups have libraries; keep the fixture faithful so
@@ -161,10 +178,13 @@ do
         glib.h) header="$FIXTURE_PREFIX/include/glib-2.0/$include" ;;
         cairo.h) header="$FIXTURE_PREFIX/include/cairo/$include" ;;
         epoxy/gl.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        fontconfig/fontconfig.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        ft2build.h) header="$FIXTURE_PREFIX/include/freetype2/$include" ;;
+        freetype/freetype.h) header="$FIXTURE_PREFIX/include/freetype2/$include" ;;
         atk/atk.h) header="$FIXTURE_PREFIX/include/$include" ;;
         gdk-pixbuf/gdk-pixbuf.h) header="$FIXTURE_PREFIX/include/$include" ;;
         graphene.h) header="$FIXTURE_PREFIX/include/graphene-1.0/$include" ;;
-        pango/pango.h) header="$FIXTURE_PREFIX/include/$include" ;;
+        pango/pango.h|pango/pangofc-fontmap.h|pango/pangoft2.h) header="$FIXTURE_PREFIX/include/$include" ;;
         *) continue ;;
     esac
     test -f "$header" || {
@@ -223,6 +243,22 @@ if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; t
 fi
 grep -Fq 'missing a libtiff developer header: include/tiffconf.h' "$fixture/error.log"
 : > "$prefix/include/tiffconf.h"
+
+rm "$prefix/include/fontconfig/fontconfig.h"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete Fontconfig developer closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'missing the fontconfig developer header: include/fontconfig/fontconfig.h' "$fixture/error.log"
+: > "$prefix/include/fontconfig/fontconfig.h"
+
+rm "$prefix/include/freetype2/ft2build.h"
+if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then
+    echo 'Expected incomplete FreeType developer closure to fail' >&2
+    exit 1
+fi
+grep -Fq 'missing the FreeType developer header: include/freetype2/ft2build.h' "$fixture/error.log"
+: > "$prefix/include/freetype2/ft2build.h"
 
 rm "$prefix/include/pango/pango.h"
 if CC="$fixture/cc" bash "$verify" "$prefix" 3.5.2 >"$fixture/error.log" 2>&1; then

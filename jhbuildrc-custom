@@ -33,6 +33,12 @@ modules = _modules_stable
 _pypathenv = {'PYTHON':os.path.join(prefix, 'bin', 'python3')}
 
 append_autogenargs("fontconfig", "--with-default-fonts=/System/Library/Fonts/Supplemental --with-add-fonts=/System/Library/Fonts,/Library/Fonts --with-cache-dir=home")
+# Fontconfig 2.17.1 otherwise probes Expat before libxml2. The reviewed GTK4
+# refresh archive intentionally carries the pinned libxml2 developer closure,
+# so keep only that leaf rebuild on the reproducible archive backend instead of
+# the runner SDK. Normal builds retain the upstream auto-selection.
+if os.environ.get('GTK4_REFRESH_FONTCONFIG_XML_BACKEND') == 'libxml2':
+    module_mesonargs['fontconfig'] = '-Dxml-backend=libxml2'
 
 os.environ['CC_FOR_BUILD'] = os.environ['CC']
 os.environ['CPP_FOR_BUILD'] = os.environ['CC']

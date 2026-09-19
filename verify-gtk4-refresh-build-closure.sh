@@ -36,6 +36,15 @@ do
     fi
 done
 
+if [ ! -f "$prefix/include/fontconfig/fontconfig.h" ]; then
+    echo "GTK4 refresh base is missing the fontconfig developer header: include/fontconfig/fontconfig.h" >&2
+    exit 1
+fi
+if [ ! -f "$prefix/include/freetype2/ft2build.h" ]; then
+    echo "GTK4 refresh base is missing the FreeType developer header: include/freetype2/ft2build.h" >&2
+    exit 1
+fi
+
 for header in \
     include/tiff.h \
     include/tiffconf.h \
@@ -141,6 +150,29 @@ main(void)
 }
 EOF
 
+cat > "$temporary/pango-fontconfig.c" <<'EOF'
+#include <fontconfig/fontconfig.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#include <pango/pangofc-fontmap.h>
+#include <pango/pangoft2.h>
+
+int
+main(void)
+{
+    FcPattern *pattern = FcPatternCreate();
+    FT_Library library;
+    FT_Error error = FT_Init_FreeType(&library);
+    PangoFontMap *font_map = pango_ft2_font_map_new();
+    GType font_map_type = pango_fc_font_map_get_type();
+    if (error == 0)
+        FT_Done_FreeType(library);
+    FcPatternDestroy(pattern);
+    g_object_unref(font_map);
+    return error != 0 || font_map_type == 0;
+}
+EOF
+
 cat > "$temporary/png.c" <<'EOF'
 #include <png.h>
 
@@ -169,6 +201,8 @@ compile_probe gobject-introspection "$temporary/gobject-introspection.c" \
     glib-2.0 cairo libffi
 compile_probe gtk "$temporary/gtk.c" \
     pango atk gdk-pixbuf-2.0 graphene-1.0 epoxy
+compile_probe pango-fontconfig "$temporary/pango-fontconfig.c" \
+    pangofc pangoft2 fontconfig freetype2
 compile_probe jpeg "$temporary/jpeg.c" libjpeg
 compile_probe png "$temporary/png.c" libpng
 compile_probe tiff "$temporary/tiff.c" libtiff-4
