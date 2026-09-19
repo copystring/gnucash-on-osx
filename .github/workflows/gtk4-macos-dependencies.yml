@@ -12,6 +12,22 @@ on:
       gnucash_ref:
         description: GnuCash branch, tag, or commit to build
         required: true
+      gtk_refresh:
+        description: Rebuild only GTK plus its archived-prefix build prerequisites
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      gnucash_repository:
+        required: true
+        type: string
+      gnucash_ref:
+        required: true
+        type: string
+      gtk_refresh:
+        required: true
+        type: boolean
 
 permissions:
   contents: read
@@ -30,6 +46,14 @@ jobs:
       JHBUILD_REF: 16e05af9b58b9e7433ce7417ecd8915beba59133
       CARGO_C_URL: https://github.com/lu-zero/cargo-c/releases/download/v0.10.23/cargo-c-macos.zip
       CARGO_C_SHA256: 765041715fb8cb2b29ac87b161a8a77f1ba7bcad9868a051eda0abc4deb144ca
+      GTEST_URL: https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+      GTEST_SHA256: 65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
+      REFRESH_BASE_RECIPE_REF: c144445a3e021a3743b70b46119533995c588bce
+      REFRESH_BASE_URL: https://github.com/copystring/gnucash-on-osx/releases/download/gtk4-dependencies-20260906-c144445/gnucash-future-gtk4-mac-dependencies.tar.xz
+      REFRESH_BASE_SHA256: 2938aed05574623ff6acf29698c8d7527c1b41084d4aca7e58b5fd8b1fcc9720
+      REFRESH_BASE_ARCH: arm64
+      REFRESH_BASE_TOOLCHAIN_FINGERPRINT: a1458fd28c3afdab2f5eaf5c99ed2f42a9494bd9da3bc34a7ab11d493067e324
+      REFRESH_BASE_MIN_OS: 26.5
     steps:
       - name: Checkout gnucash-on-osx
         uses: actions/checkout@v6
@@ -59,8 +83,42 @@ jobs:
             uname -m
           } | shasum -a 256 | awk '{ print "fingerprint=" $1 }' >> "$GITHUB_OUTPUT"
 
+      - name: Validate GTK4 refresh toolchain
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "$REFRESH_BASE_ARCH"
+          current_os="$(sw_vers -productVersion)"
+          current_sdk="$(xcrun --sdk macosx --show-sdk-version)"
+          python3 - "$REFRESH_BASE_MIN_OS" "$current_os" "$current_sdk" <<'PY'
+          import sys
+
+          def version(value):
+              try:
+                  return tuple(map(int, value.split('.')))
+              except ValueError as error:
+                  raise SystemExit(f"Invalid macOS version: {value}") from error
+
+          base, os_version, sdk_version = map(version, sys.argv[1:])
+          if os_version < base:
+              raise SystemExit(f"Runner macOS {os_version} cannot support refresh target {base}")
+          if sdk_version < base:
+              raise SystemExit(f"SDK {sdk_version} cannot support refresh target {base}")
+          PY
+          {
+            printf 'MACOSX_DEPLOYMENT_TARGET=%s\n' "$REFRESH_BASE_MIN_OS"
+            printf 'REFRESH_CURRENT_TOOLCHAIN_FINGERPRINT=%s\n' "${{ steps.toolchain.outputs.fingerprint }}"
+          } >> "$GITHUB_ENV"
+          {
+            printf '### GTK refresh toolchain provenance\n\n'
+            printf '%s\n' "- Base fingerprint: $REFRESH_BASE_TOOLCHAIN_FINGERPRINT"
+            printf '%s\n' "- Current fingerprint: ${{ steps.toolchain.outputs.fingerprint }}"
+            printf '%s\n' "- Refresh deployment target: $REFRESH_BASE_MIN_OS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Restore validated GTK4 dependencies
         id: gtk4-dependencies-cache
+        if: inputs.gtk_refresh != true
         uses: actions/cache/restore@v5
         with:
           path: |
@@ -72,7 +130,7 @@ jobs:
 
       - name: Restore legacy validated GTK4 dependencies
         id: gtk4-dependencies-cache-legacy
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh != true && steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v5
         with:
           path: |
@@ -82,7 +140,7 @@ jobs:
           key: gtk4-jhbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.fingerprint }}-${{ env.GTK_OSX_REF }}-${{ env.CARGO_C_SHA256 }}-${{ hashFiles('gnucash-on-osx/jhbuildrc-custom', 'gnucash-on-osx/modulesets/gnucash.modules', 'gnucash-on-osx/patches/**') }}
 
       - name: Install GTK-OSX build environment
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh == true || (steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true')
         run: |
           brew install perl-xml-parser
           perl -MXML::Parser -e 1
@@ -142,8 +200,31 @@ jobs:
           ' bash "$ROOT_DIR/inst"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
+      - name: Verify GTK4 refresh compiler target
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          "$JHBUILD" run sh -c '
+            test "$MACOSX_DEPLOYMENT_TARGET" = "$1"
+            case " $CFLAGS " in
+              *" -mmacosx-version-min=$1 "*) ;;
+              *) echo "JHBuild CFLAGS lacks -mmacosx-version-min=$1: $CFLAGS" >&2; exit 1 ;;
+            esac
+          ' sh "$REFRESH_BASE_MIN_OS"
+          source="$RUNNER_TEMP/gtk-refresh-target.c"
+          library="$RUNNER_TEMP/libgtk-refresh-target.dylib"
+          printf 'int gtk_refresh_target_probe(void) { return 0; }\n' > "$source"
+          "$JHBUILD" run sh -c 'clang $CFLAGS -dynamiclib "$1" -o "$2"' \
+            sh "$source" "$library"
+          probe_min_os="$(otool -l "$library" | awk '
+            $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }
+            active && ($1 == "minos" || $1 == "version") { print $2; exit }
+            $1 == "cmd" { active = 0 }
+          ')"
+          test "$probe_min_os" = "$REFRESH_BASE_MIN_OS"
+
       - name: Bootstrap GTK-OSX
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh == true || (steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true')
         run: |
           for attempt in 1 2 3
           do
@@ -158,7 +239,7 @@ jobs:
           done
 
       - name: Build tooling
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh != true && steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           cargo_c_archive="$RUNNER_TEMP/cargo-c-macos.zip"
           curl --fail --location --show-error --retry 5 --retry-all-errors \
@@ -181,7 +262,7 @@ jobs:
           "$JHBUILD" --no-interact --exit-on-error build --no-network pygments
 
       - name: Build GTK4 dependencies
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh != true && steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true'
         run: |
           for attempt in 1 2 3
           do
@@ -196,6 +277,136 @@ jobs:
           done
           "$JHBUILD" --no-interact --exit-on-error build --no-network meta-gnucash-gtk4-dependencies
 
+      - name: Restore and validate GTK4 refresh base
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" fetch --no-tags --depth=1 origin "$REFRESH_BASE_RECIPE_REF"
+          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" cat-file -e "$REFRESH_BASE_RECIPE_REF^{commit}"
+          git -C "$GITHUB_WORKSPACE/gnucash-on-osx" diff --exit-code \
+            "$REFRESH_BASE_RECIPE_REF" -- dependencies-gtk4.txt
+          python3 - "$GITHUB_WORKSPACE/gnucash-on-osx" "$REFRESH_BASE_RECIPE_REF" <<'PY'
+          import subprocess
+          import sys
+          import xml.etree.ElementTree as ET
+
+          checkout, baseline = sys.argv[1:]
+          current = ET.parse(f"{checkout}/modulesets/gnucash.modules").getroot()
+          baseline_xml = subprocess.check_output(
+              ["git", "-C", checkout, "show", f"{baseline}:modulesets/gnucash.modules"],
+              text=True)
+          base = ET.fromstring(baseline_xml)
+
+          def gtk_module(root):
+              return next(module for module in root if module.attrib.get("id") == "gtk-4")
+
+          expected_new = [
+              "gtk-4.22.1-macos-toplevel-remap.patch",
+              "gtk-4.22.1-column-view-focus-column-ownership.patch",
+              "gtk-4.22.1-window-deferred-focus-ownership.patch",
+          ]
+          old, new = gtk_module(base), gtk_module(current)
+          if old.attrib != new.attrib:
+              raise SystemExit("GTK refresh base has different GTK module arguments")
+          if old.find("branch").attrib != new.find("branch").attrib:
+              raise SystemExit("GTK refresh base has different GTK source identity")
+          if [item.attrib["package"] for item in old.find("dependencies")] != [item.attrib["package"] for item in new.find("dependencies")]:
+              raise SystemExit("GTK refresh base has different GTK dependencies")
+          if [item.attrib["file"] for item in old.find("branch").findall("patch")] != expected_new[:1]:
+              raise SystemExit("GTK refresh base has an unexpected GTK patch set")
+          if [item.attrib["file"] for item in new.find("branch").findall("patch")] != expected_new:
+              raise SystemExit("GTK refresh mode permits only the audited ownership patches")
+          PY
+          archive="$RUNNER_TEMP/gtk4-refresh-base.tar.xz"
+          curl --fail --location --show-error "$REFRESH_BASE_URL" --output "$archive"
+          echo "$REFRESH_BASE_SHA256  $archive" | shasum -a 256 -c -
+          mkdir -p "$ROOT_DIR/inst"
+          tar -xJf "$archive" -C "$ROOT_DIR/inst"
+          require_version() {
+            test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion "$1")" = "$2"
+          }
+          require_version glib-2.0 2.88.0
+          require_version gobject-2.0 2.88.0
+          require_version gio-2.0 2.88.0
+          require_version gmodule-2.0 2.88.0
+          require_version gio-unix-2.0 2.88.0
+          require_version cairo 1.18.4
+          require_version cairo-gobject 1.18.4
+          require_version epoxy 1.5.10
+          require_version gtk4 4.22.1
+          "$ROOT_DIR/inst/bin/pkgconf" --exists gtk4-macos gwengui-gtk4 aqbanking
+          "$JHBUILD" run "$ROOT_DIR/inst/bin/python3" - <<'PY'
+          import sys
+          if sys.version_info < (3, 8):
+              raise SystemExit("gobject-introspection requires Python 3.8 or newer")
+          PY
+          meson_version="$("$JHBUILD" run meson --version)"
+          python3 - "$meson_version" <<'PY'
+          import sys
+          version = tuple(map(int, sys.argv[1].split('.')))
+          if version < (1, 4):
+              raise SystemExit(f"gobject-introspection requires Meson 1.4 or newer, found {sys.argv[1]}")
+          PY
+          test ! -e "$ROOT_DIR/inst/bin/g-ir-scanner"
+          test ! -e "$ROOT_DIR/inst/include/epoxy/gl.h"
+          base_archs="$(lipo -archs "$ROOT_DIR/inst/lib/libgtk-4.1.dylib")"
+          case " $base_archs " in
+            *" $REFRESH_BASE_ARCH "*) ;;
+            *) echo "Refresh base GTK architecture mismatch: $base_archs" >&2; exit 1 ;;
+          esac
+          base_min_os="$(otool -l "$ROOT_DIR/inst/lib/libgtk-4.1.dylib" | awk '
+            $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }
+            active && ($1 == "minos" || $1 == "version") { print $2; exit }
+            $1 == "cmd" { active = 0 }
+          ')"
+          test "$base_min_os" = "$REFRESH_BASE_MIN_OS"
+          printf 'REFRESH_BASE_GTK_MIN_OS=%s\n' "$base_min_os" >> "$GITHUB_ENV"
+
+      - name: Rebuild GTK4 refresh closure
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          for module in gobject-introspection libepoxy gtk-4
+          do
+            "$JHBUILD" --no-interact --exit-on-error updateone "$module"
+            "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network "$module"
+          done
+          test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
+          test -x "$ROOT_DIR/inst/bin/g-ir-compiler"
+          test -d "$ROOT_DIR/inst/include/gobject-introspection-1.0"
+          test -d "$ROOT_DIR/inst/share/gir-1.0"
+          test -e "$ROOT_DIR/inst/lib/libgirepository-1.0.dylib"
+          test -f "$ROOT_DIR/inst/include/epoxy/gl.h"
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion epoxy)" = 1.5.10
+          test "$("$ROOT_DIR/inst/bin/pkgconf" --modversion gtk4)" = 4.22.1
+          rebuilt_min_os="$(otool -l "$ROOT_DIR/inst/lib/libgtk-4.1.dylib" | awk '
+            $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }
+            active && ($1 == "minos" || $1 == "version") { print $2; exit }
+            $1 == "cmd" { active = 0 }
+          ')"
+          test -n "$rebuilt_min_os"
+          test "$rebuilt_min_os" = "$REFRESH_BASE_GTK_MIN_OS"
+          {
+            printf '### GTK refresh base\n\n'
+            printf '%s\n' "- Recipe: $REFRESH_BASE_RECIPE_REF"
+            printf '%s\n' "- Archive: $REFRESH_BASE_URL"
+            printf '%s\n' "- Archive SHA-256: $REFRESH_BASE_SHA256"
+            printf '%s\n' "- Toolchain fingerprint: $REFRESH_BASE_TOOLCHAIN_FINGERPRINT"
+            printf '%s\n' "- Current toolchain fingerprint: $REFRESH_CURRENT_TOOLCHAIN_FINGERPRINT"
+            printf '%s\n' "- GTK minimum macOS: $rebuilt_min_os"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Restore Googletest source for GTK4 refresh Core check
+        if: inputs.gtk_refresh == true
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/googletest-1.17.0.tar.gz"
+          mkdir -p "$ROOT_DIR/src"
+          curl --fail --location --show-error "$GTEST_URL" --output "$archive"
+          echo "$GTEST_SHA256  $archive" | shasum -a 256 -c -
+          tar -xzf "$archive" -C "$ROOT_DIR/src"
+          test -f "$ROOT_DIR/src/googletest-1.17.0/CMakeLists.txt"
+
       - name: Verify GTK4 dependency contract
         run: |
           "$JHBUILD" run \
@@ -205,7 +416,7 @@ jobs:
             gtk4-macos gwengui-gtk4 aqbanking
 
       - name: Cache validated GTK4 dependencies
-        if: steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
+        if: inputs.gtk_refresh != true && steps.gtk4-dependencies-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v5
         with:
           path: |

@@ -37,7 +37,13 @@
  <!--include href="/Users/john/Development/GTK-OSX/gtk-osx-build/modulesets-stable/gtk-osx.modules"/-->
 
   <!-- Keep this GTK definition in sync with GTK_OSX_REF in the dependency workflow.
-       It overrides the included module only to carry the macOS remap fix. -->
+       It overrides the included module for the macOS remap fix and the following
+       ownership backports for the pinned GTK 4.22.1. The same changes have
+       runtime A/B evidence on GTK 4.22.4 and apply cleanly to GTK 4.22.1:
+       gtkcolumnview-focus-column-ref.patch SHA-256 23046af144974f7a91d6a2cdad14f9de6764a667077bbb9dc6fd1a0611b3d5f9;
+       gtkwindow-deferred-focus-ref.patch SHA-256 061dbca5582157bab664a9e7805d42f0cd83ec5f8d61470da2ad4705217623d8.
+       Remove either patch when the pinned GTK source contains its equivalent fix;
+       do not carry the deferred-focus patch to GTK 4.24 or newer, where it is upstream. -->
   <meson id="gtk-4"
          mesonargs="-Dx11-backend=false -Dmedia-gstreamer=disabled -Dintrospection=enabled -Dvulkan=disabled">
     <branch repo="download.gnome.org"
@@ -45,6 +51,8 @@
             version="4.22.1"
             hash="sha256:cd7b5a9c41127da6fb321c5a842ad73c62e6996f9ce3f1960ca509f6559d55fc">
       <patch file="gtk-4.22.1-macos-toplevel-remap.patch" strip="1"/>
+      <patch file="gtk-4.22.1-column-view-focus-column-ownership.patch" strip="1"/>
+      <patch file="gtk-4.22.1-window-deferred-focus-ownership.patch" strip="1"/>
     </branch>
     <dependencies>
       <dep package="pango"/>

@@ -1,0 +1,20 @@
+name: Reviewed GTK4 macOS refresh
+
+on:
+  push:
+    branches:
+      - fix/gtk4-macos-bundle-artifact
+    paths:
+      - .github/workflows/gtk4-reviewed-macos-refresh.yml
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    if: github.repository == 'copystring/gnucash-on-osx' && github.ref == 'refs/heads/fix/gtk4-macos-bundle-artifact'
+    uses: ./.github/workflows/gtk4-macos-dependencies.yml
+    with:
+      gnucash_repository: copystring/gnucash
+      gnucash_ref: 32b1c9b0cf9d1e28b5a6f98ff2019a5d8b9c3649
+      gtk_refresh: true
