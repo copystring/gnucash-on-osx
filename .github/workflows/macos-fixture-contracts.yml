@@ -11,11 +11,16 @@ on:
       - modulesets/gnucash.modules
       - modulesets/generate-docs-overlay.py
       - jhbuildrc-custom
+      - verify-jhbuild-deployment-target.sh
+      - verify-jhbuild-prefix.sh
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
+      - tests/test-verify-jhbuild-deployment-target.sh
+      - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-macos-app-bundle.sh
+      - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
       - .github/workflows/macos-fixture-contracts.yml
   push:
@@ -31,11 +36,16 @@ on:
       - modulesets/gnucash.modules
       - modulesets/generate-docs-overlay.py
       - jhbuildrc-custom
+      - verify-jhbuild-deployment-target.sh
+      - verify-jhbuild-prefix.sh
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
+      - tests/test-verify-jhbuild-deployment-target.sh
+      - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-macos-app-bundle.sh
+      - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
       - .github/workflows/macos-fixture-contracts.yml
   workflow_dispatch:
@@ -64,4 +74,6 @@ jobs:
           bash tests/test-depstarball-bundle-inputs.sh
           python3 tests/test-generate-docs-overlay.py
           python3 tests/test-macos-bundle-metadata.py
+          bash tests/test-verify-jhbuild-deployment-target.sh
+          bash tests/test-verify-jhbuild-prefix.sh
           bash tests/test-verify-macos-app-bundle.sh

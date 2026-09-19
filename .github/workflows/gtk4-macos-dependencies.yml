@@ -190,46 +190,21 @@ jobs:
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
           "$JHBUILD" help >/dev/null
-          "$JHBUILD" run bash -c '
-            expected_prefix=$1
-            if [ "${JHBUILD_PREFIX:-}" != "$expected_prefix" ]; then
-              printf "Expected JHBUILD_PREFIX=%s, got %s\n" \
-                "$expected_prefix" "${JHBUILD_PREFIX:-<unset>}" >&2
-              exit 1
-            fi
-          ' bash "$ROOT_DIR/inst"
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-prefix.sh" \
+            "$ROOT_DIR/inst"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Verify GTK4 refresh compiler target
         if: inputs.gtk_refresh == true
         run: |
           set -euo pipefail
-          "$JHBUILD" run sh -c '
-            if [ "${MACOSX_DEPLOYMENT_TARGET:-}" != "$1" ]; then
-              printf "JHBuild deployment target mismatch: expected %s, got %s; CFLAGS=%s\n" \
-                "$1" "${MACOSX_DEPLOYMENT_TARGET:-<unset>}" "${CFLAGS:-<unset>}" >&2
-              exit 1
-            fi
-            case " $CFLAGS " in
-              *" -mmacosx-version-min=$1 "*) ;;
-              *) echo "JHBuild CFLAGS lacks -mmacosx-version-min=$1: $CFLAGS" >&2; exit 1 ;;
-            esac
-          ' sh "$REFRESH_BASE_MIN_OS"
           source="$RUNNER_TEMP/gtk-refresh-target.c"
           library="$RUNNER_TEMP/libgtk-refresh-target.dylib"
           printf 'int gtk_refresh_target_probe(void) { return 0; }\n' > "$source"
-          "$JHBUILD" run sh -c 'clang $CFLAGS -dynamiclib "$1" -o "$2"' \
-            sh "$source" "$library"
-          probe_min_os="$(otool -l "$library" | awk '
-            $1 == "cmd" && ($2 == "LC_BUILD_VERSION" || $2 == "LC_VERSION_MIN_MACOSX") { active = 1; next }
-            active && ($1 == "minos" || $1 == "version") { print $2; exit }
-            $1 == "cmd" { active = 0 }
-          ')"
-          if [ "$probe_min_os" != "$REFRESH_BASE_MIN_OS" ]; then
-            printf 'Refresh probe deployment target mismatch: expected %s, got %s\n' \
-              "$REFRESH_BASE_MIN_OS" "${probe_min_os:-<unset>}" >&2
-            exit 1
-          fi
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-deployment-target.sh" \
+            "$REFRESH_BASE_MIN_OS" "$source" "$library"
 
       - name: Bootstrap GTK-OSX
         if: inputs.gtk_refresh == true || (steps.gtk4-dependencies-cache.outputs.cache-hit != 'true' && steps.gtk4-dependencies-cache-legacy.outputs.cache-hit != 'true')

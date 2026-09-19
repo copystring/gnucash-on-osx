@@ -1,4 +1,5 @@
 name: Reviewed GTK4 macOS refresh
+# Retry the reviewed refresh after removing inline commands from the GTK-OSX wrapper path.
 
 on:
   push:
