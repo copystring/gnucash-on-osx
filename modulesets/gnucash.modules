@@ -48,6 +48,20 @@
             hash="sha256:bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16" />
   </autotools>
 
+  <!-- Keep gtk-osx's pinned GLib source and dependency, but make the second
+       pass's introspection mode explicit after gobject-introspection is built.
+       The included glib-no-introspection module remains the first pass. -->
+  <meson id="glib"
+         mesonargs="-Dlibmount=disabled -Dintrospection=enabled">
+    <branch repo="download.gnome.org"
+            module="glib/2.88/glib-2.88.0.tar.xz"
+            version="2.88.0"
+            hash="sha256:3546251ccbb3744d4bc4eb48354540e1f6200846572bab68e3a2b7b2b64dfd07" />
+    <dependencies>
+      <dep package="gobject-introspection" />
+    </dependencies>
+  </meson>
+
   <!-- Keep this GTK definition in sync with GTK_OSX_REF in the dependency workflow.
        It overrides the included module for the macOS remap fix and the following
        ownership backports for the pinned GTK 4.22.1. The same changes have

@@ -47,6 +47,14 @@ EXPECTED_REFRESH_ZLIB = {
     "href": "https://zlib.net/fossils/",
     "type": "tarball",
 }
+EXPECTED_GLIB_INTROSPECTION = {
+    "id": "glib",
+    "mesonargs": "-Dlibmount=disabled -Dintrospection=enabled",
+    "repo": "download.gnome.org",
+    "module": "glib/2.88/glib-2.88.0.tar.xz",
+    "version": "2.88.0",
+    "hash": "sha256:3546251ccbb3744d4bc4eb48354540e1f6200846572bab68e3a2b7b2b64dfd07",
+}
 
 
 def git_bytes(checkout, *arguments):
@@ -125,6 +133,27 @@ def verify_moduleset(base_xml, output_xml):
         raise ValueError("GTK refresh base has an unexpected GTK patch set")
     if patches(output) != EXPECTED_OUTPUT_PATCHES:
         raise ValueError("GTK refresh mode permits only the audited ownership patches")
+    if any(module.attrib.get("id") == EXPECTED_GLIB_INTROSPECTION["id"]
+           for module in base_root):
+        raise ValueError("GTK refresh base unexpectedly overrides the pinned GLib module")
+    glib_modules = [module for module in output_root
+                    if module.attrib.get("id") == EXPECTED_GLIB_INTROSPECTION["id"]]
+    if len(glib_modules) != 1:
+        raise ValueError("GTK refresh output must pin exactly one GLib introspection pass")
+    glib_module = glib_modules[0]
+    glib_branch = glib_module.find("branch")
+    if (glib_module.tag != "meson" or
+            glib_module.attrib != {
+                key: EXPECTED_GLIB_INTROSPECTION[key]
+                for key in ("id", "mesonargs")
+            } or
+            glib_branch is None or
+            glib_branch.attrib != {
+                key: EXPECTED_GLIB_INTROSPECTION[key]
+                for key in ("repo", "module", "version", "hash")
+            } or
+            packages(glib_module) != ["gobject-introspection"]):
+        raise ValueError("GTK refresh output has an unexpected GLib introspection definition")
     if any(module.attrib.get("id") == EXPECTED_REFRESH_ZLIB["id"]
            for module in base_root):
         raise ValueError("GTK refresh base unexpectedly contains the output-only zlib module")

@@ -65,7 +65,8 @@ class RefreshRecipeTests(unittest.TestCase):
             RECIPE.verify_manifest(base, output, "0" * 64)
 
     def test_moduleset_rejects_unreviewed_output_patch(self):
-        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES, include_refresh_zlib=False)
+        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
+                              include_refresh_zlib=False, include_glib=False)
         output = self.moduleset(
             RECIPE.EXPECTED_OUTPUT_PATCHES + ["unreviewed.patch"])
         with self.assertRaisesRegex(ValueError, "only the audited ownership patches"):
@@ -73,7 +74,7 @@ class RefreshRecipeTests(unittest.TestCase):
 
     def test_moduleset_requires_exact_refresh_zlib_source(self):
         base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
-                              include_refresh_zlib=False)
+                              include_refresh_zlib=False, include_glib=False)
         missing = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES,
                                  include_refresh_zlib=False)
         with self.assertRaisesRegex(ValueError, "unexpected zlib repository"):
@@ -83,6 +84,21 @@ class RefreshRecipeTests(unittest.TestCase):
             "zlib-1.3.2.tar.gz", "zlib-1.3.1.tar.gz")
         with self.assertRaisesRegex(ValueError, "unexpected zlib source identity"):
             RECIPE.verify_moduleset(base, changed)
+
+    def test_moduleset_requires_explicit_pinned_glib_introspection(self):
+        base = self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
+                              include_refresh_zlib=False, include_glib=False)
+        missing = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES, include_glib=False)
+        with self.assertRaisesRegex(ValueError, "exactly one GLib introspection pass"):
+            RECIPE.verify_moduleset(base, missing)
+        changed = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES).replace(
+            "-Dintrospection=enabled", "-Dintrospection=disabled")
+        with self.assertRaisesRegex(ValueError, "unexpected GLib introspection definition"):
+            RECIPE.verify_moduleset(base, changed)
+        changed_source = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES).replace(
+            "glib-2.88.0.tar.xz", "glib-2.88.1.tar.xz")
+        with self.assertRaisesRegex(ValueError, "unexpected GLib introspection definition"):
+            RECIPE.verify_moduleset(base, changed_source)
 
     def test_checkout_uses_exact_commits_not_platform_line_endings(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -98,7 +114,8 @@ class RefreshRecipeTests(unittest.TestCase):
             (checkout / RECIPE.BASE_MANIFEST_PATH).write_bytes(base_manifest)
             (checkout / RECIPE.MODULESET_PATH).write_text(
                 self.moduleset(RECIPE.EXPECTED_BASE_PATCHES,
-                               include_refresh_zlib=False), encoding="utf-8")
+                               include_refresh_zlib=False, include_glib=False),
+                encoding="utf-8")
             subprocess.run(["git", "-C", str(checkout), "add", "."], check=True)
             subprocess.run(
                 ["git", "-C", str(checkout), "commit", "--quiet", "-m", "base"], check=True)
@@ -124,7 +141,7 @@ class RefreshRecipeTests(unittest.TestCase):
                 hashlib.sha256(base_manifest).hexdigest())
 
     @staticmethod
-    def moduleset(patch_names, include_refresh_zlib=True):
+    def moduleset(patch_names, include_refresh_zlib=True, include_glib=True):
         patch_xml = "".join(f'<patch file="{name}"/>' for name in patch_names)
         zlib_xml = ""
         if include_refresh_zlib:
@@ -134,8 +151,18 @@ class RefreshRecipeTests(unittest.TestCase):
                 '<branch repo="zlib" module="zlib-1.3.2.tar.gz" version="1.3.2" '
                 'hash="sha256:bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"/>'
                 '</autotools>')
+        glib_xml = ""
+        if include_glib:
+            glib_xml = (
+                '<meson id="glib" mesonargs="-Dlibmount=disabled -Dintrospection=enabled">'
+                '<branch repo="download.gnome.org" module="glib/2.88/glib-2.88.0.tar.xz" '
+                'version="2.88.0" '
+                'hash="sha256:3546251ccbb3744d4bc4eb48354540e1f6200846572bab68e3a2b7b2b64dfd07"/>'
+                '<dependencies><dep package="gobject-introspection"/></dependencies>'
+                '</meson>')
         return (
-            '<moduleset>' + zlib_xml + '<autotools id="gtk-4" autogenargs="--fixture">'
+            '<moduleset>' + zlib_xml + glib_xml +
+            '<autotools id="gtk-4" autogenargs="--fixture">'
             f'<branch repo="fixture" module="gtk.tar.xz">{patch_xml}</branch>'
             '<dependencies><dep package="glib"/></dependencies>'
             '</autotools></moduleset>')
@@ -166,6 +193,25 @@ class RefreshRecipeTests(unittest.TestCase):
             'output_recipe_ref="$(git -C "$GITHUB_WORKSPACE/gnucash-on-osx" rev-parse HEAD)"',
             workflow)
         self.assertNotIn("git -C \"$GITHUB_WORKSPACE/gnucash-on-osx\" diff --exit-code", workflow)
+
+    def test_glib_introspection_bootstrap_uses_three_clean_passes(self):
+        workflow = (REPOSITORY / ".github/workflows/gtk4-macos-dependencies.yml").read_text(
+            encoding="utf-8")
+        closure = workflow.index('"$ROOT_DIR/inst" 3.5.2 10.47 1.3.2 --skip-gir')
+        first = workflow.index('buildone --force --autogen --no-network glib-no-introspection')
+        scanner = workflow.index('buildone --force --no-network gobject-introspection')
+        second = workflow.index('buildone --force --autogen --no-network glib\n')
+        gir = workflow.index('test -f "$ROOT_DIR/inst/share/gir-1.0/GIRepository-3.0.gir"')
+        downstream = workflow.index('            harfbuzz \\')
+        self.assertLess(closure, first)
+        self.assertLess(first, scanner)
+        self.assertLess(scanner, second)
+        self.assertLess(second, gir)
+        self.assertLess(gir, downstream)
+        self.assertIn('test ! -e "$ROOT_DIR/inst/bin/g-ir-scanner"',
+                      workflow[first:scanner])
+        self.assertIn('test -x "$ROOT_DIR/inst/bin/g-ir-scanner"',
+                      workflow[scanner:second])
 
 
 if __name__ == "__main__":

@@ -385,9 +385,19 @@ jobs:
           "$JHBUILD" run bash \
             "$GITHUB_WORKSPACE/gnucash-on-osx/verify-gtk4-refresh-build-closure.sh" \
             "$ROOT_DIR/inst" 3.5.2 10.47 1.3.2 --skip-gir
+          # Follow gtk-osx's pinned GLib/GI bootstrap order. Both GLib modules
+          # use the same 2.88.0 source; --autogen makes JHBuild replace the
+          # shared Meson build directory when the introspection mode changes.
+          "$JHBUILD" --no-interact --exit-on-error updateone glib-no-introspection
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --autogen --no-network glib-no-introspection
+          test ! -e "$ROOT_DIR/inst/bin/g-ir-scanner"
+          "$JHBUILD" --no-interact --exit-on-error updateone gobject-introspection
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --no-network gobject-introspection
+          test -x "$ROOT_DIR/inst/bin/g-ir-scanner"
+          "$JHBUILD" --no-interact --exit-on-error updateone glib
+          "$JHBUILD" --no-interact --exit-on-error buildone --force --autogen --no-network glib
+          test -f "$ROOT_DIR/inst/share/gir-1.0/GIRepository-3.0.gir"
           for module in \
-            gobject-introspection \
-            glib \
             harfbuzz \
             pango \
             gdk-pixbuf \
