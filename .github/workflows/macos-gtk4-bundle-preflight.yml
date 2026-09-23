@@ -15,6 +15,10 @@ on:
         description: Optional GitHub owner/repository for pinned documentation
         required: false
         default: ''
+      docs_branch:
+        description: Branch containing the pinned documentation commit
+        required: false
+        default: ''
       docs_ref:
         description: Optional full 40-character documentation commit SHA
         required: false
@@ -34,6 +38,10 @@ on:
         required: true
         type: string
       docs_repository:
+        required: false
+        type: string
+        default: ''
+      docs_branch:
         required: false
         type: string
         default: ''
@@ -92,6 +100,7 @@ jobs:
       GTEST_SHA256: 65fab701d9829d38cb77c14acdc431d2108bfdbf8979e40eb8ae567edf10b27c
       BUNDLE_REVISION: 1
       DOCS_REPOSITORY: ${{ inputs.docs_repository }}
+      DOCS_BRANCH: ${{ inputs.docs_branch }}
       DOCS_REF: ${{ inputs.docs_ref }}
 
     steps:
@@ -166,9 +175,14 @@ jobs:
         run: |
           set -euo pipefail
           python3 "$GITHUB_WORKSPACE/gnucash-on-osx/modulesets/generate-docs-overlay.py" \
-            "$MODULESET" "$DOCS_OVERLAY" "$DOCS_REPOSITORY" "$DOCS_REF"
-          if test -n "$DOCS_REPOSITORY" || test -n "$DOCS_REF"; then
+            "$MODULESET" "$DOCS_OVERLAY" "$DOCS_REPOSITORY" \
+            "$DOCS_BRANCH" "$DOCS_REF"
+          if test -n "$DOCS_REPOSITORY"; then
             test -f "$DOCS_OVERLAY"
+            docs_origin="https://github.com/${DOCS_REPOSITORY}.git"
+            branch_head="$(git ls-remote "$docs_origin" \
+              "refs/heads/$DOCS_BRANCH" | awk 'NR == 1 { print $1 }')"
+            test "$branch_head" = "$DOCS_REF"
             printf 'DOCS_MODULESET=%s\n' "$DOCS_OVERLAY" >> "$GITHUB_ENV"
           else
             test ! -e "$DOCS_OVERLAY"
@@ -379,6 +393,7 @@ jobs:
             printf '%s\n' "- Core: $core_revision"
             if test -n "${DOCS_MODULESET:-}"; then
               printf '%s\n' "- Docs repository: $DOCS_REPOSITORY"
+              printf '%s\n' "- Docs branch: $DOCS_BRANCH"
               printf '%s\n' "- Docs origin: $(git -C "$ROOT_DIR/src/gnucash-docs" remote get-url origin)"
               printf '%s\n' "- Docs commit: $(git -C "$ROOT_DIR/src/gnucash-docs" rev-parse HEAD)"
             else

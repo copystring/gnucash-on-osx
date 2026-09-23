@@ -15,6 +15,7 @@ GENERATOR = ROOT / "modulesets" / "generate-docs-overlay.py"
 BASE_MODULESET = ROOT / "modulesets" / "gnucash.modules"
 JHBUILD_CONFIG = ROOT / "jhbuildrc-custom"
 PINNED_REPOSITORY = "copystring/gnucash-docs"
+PINNED_BRANCH = "fix/gtk4-docs-integrated-prepr-20260912"
 PINNED_REVISION = "824a138e8588264c971bb58ad9dacd34420a6bd4"
 
 
@@ -38,7 +39,7 @@ def non_branch_children(module):
 
 
 class DocsOverlayGeneratorTest(unittest.TestCase):
-    def generate(self, output, repository, revision):
+    def generate(self, output, repository, branch, revision):
         return subprocess.run(
             [
                 sys.executable,
@@ -46,6 +47,7 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
                 str(BASE_MODULESET),
                 str(output),
                 repository,
+                branch,
                 revision,
             ],
             capture_output=True,
@@ -90,7 +92,7 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
     def test_blank_inputs_leave_the_tarball_moduleset_unchanged(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "docs-overlay.modules"
-            result = self.generate(output, "", "")
+            result = self.generate(output, "", "", "")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(output.exists())
             self.assertEqual(self.configured_modulesets(), str(BASE_MODULESET))
@@ -98,7 +100,8 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
     def test_pin_round_trip_preserves_the_docs_build_attributes(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "docs-overlay.modules"
-            result = self.generate(output, PINNED_REPOSITORY, PINNED_REVISION)
+            result = self.generate(output, PINNED_REPOSITORY, PINNED_BRANCH,
+                                   PINNED_REVISION)
             self.assertEqual(result.returncode, 0, result.stderr)
 
             base = docs_module(ET.parse(BASE_MODULESET).getroot())
@@ -124,7 +127,7 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
             self.assertEqual(branches[0].attrib, {
                 "repo": "github",
                 "module": f"{PINNED_REPOSITORY}.git",
-                "tag": PINNED_REVISION,
+                "tag": PINNED_BRANCH,
                 "checkoutdir": "gnucash-docs",
             })
             self.assertEqual(
@@ -134,15 +137,17 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
 
     def test_incomplete_or_unsafe_inputs_fail_closed(self):
         cases = (
-            (PINNED_REPOSITORY, "", "both be blank or supplied"),
-            ("", PINNED_REVISION, "both be blank or supplied"),
-            ("copystring/../gnucash-docs", PINNED_REVISION, "owner/repository"),
-            (PINNED_REPOSITORY, "stable", "40-character commit SHA"),
+            (PINNED_REPOSITORY, "", PINNED_REVISION, "all be blank or supplied"),
+            ("", PINNED_BRANCH, PINNED_REVISION, "all be blank or supplied"),
+            ("copystring/../gnucash-docs", PINNED_BRANCH, PINNED_REVISION,
+             "owner/repository"),
+            (PINNED_REPOSITORY, "../invalid", PINNED_REVISION, "valid branch"),
+            (PINNED_REPOSITORY, PINNED_BRANCH, "stable", "40-character commit SHA"),
         )
         with tempfile.TemporaryDirectory() as temporary:
-            for number, (repository, revision, expected) in enumerate(cases):
+            for number, (repository, branch, revision, expected) in enumerate(cases):
                 output = Path(temporary) / f"invalid-{number}.modules"
-                result = self.generate(output, repository, revision)
+                result = self.generate(output, repository, branch, revision)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn(expected, result.stderr)
                 self.assertFalse(output.exists())
@@ -153,9 +158,10 @@ class DocsOverlayGeneratorTest(unittest.TestCase):
             original = "old overlay must remain untouched\n"
             output.write_text(original, encoding="utf-8")
 
-            for repository, revision in (("", ""),
-                                         (PINNED_REPOSITORY, PINNED_REVISION)):
-                result = self.generate(output, repository, revision)
+            for repository, branch, revision in (("", "", ""),
+                                                 (PINNED_REPOSITORY, PINNED_BRANCH,
+                                                  PINNED_REVISION)):
+                result = self.generate(output, repository, branch, revision)
                 self.assertEqual(result.returncode, 2)
                 self.assertIn("existing overlay", result.stderr)
                 self.assertEqual(output.read_text(encoding="utf-8"), original)

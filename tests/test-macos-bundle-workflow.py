@@ -55,6 +55,16 @@ class BundleWorkflowContractTest(unittest.TestCase):
 
     def test_internal_handoff_pins_the_archive_target(self):
         self.assertIn("dependencies_deployment_target: '26.5'", self.handoff)
+        self.assertIn(
+            "docs_branch: fix/gtk4-docs-integrated-prepr-20260912",
+            self.handoff,
+        )
+
+    def test_documentation_branch_is_checked_against_commit_pin(self):
+        self.assertIn('"$DOCS_BRANCH" "$DOCS_REF"', self.preflight)
+        self.assertIn('"refs/heads/$DOCS_BRANCH"', self.preflight)
+        self.assertIn('test "$branch_head" = "$DOCS_REF"', self.preflight)
+        self.assertIn('git -C "$docs_source" rev-parse HEAD', self.preflight)
 
     def test_artifact_download_provenance_inputs_are_in_step_environment(self):
         step = self.preflight.split(
