@@ -1,6 +1,6 @@
 name: Reviewed GTK4 macOS refresh
 # Retry the reviewed refresh with the complete pinned native and introspection
-# closures, including the verified zlib fossil and GLib's GIR/typelib cycle.
+# closures, including the verified zlib fossil and the pinned GLib/GI/GLib cycle.
 
 on:
   push:
