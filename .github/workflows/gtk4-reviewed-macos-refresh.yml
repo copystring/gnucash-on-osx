@@ -1,6 +1,6 @@
 name: Reviewed GTK4 macOS refresh
 # Retry the reviewed refresh with the complete pinned native and introspection
-# closures, including PCRE2/zlib headers and GLib's GIR/typelib cycle.
+# closures, including the verified zlib fossil and GLib's GIR/typelib cycle.
 
 on:
   push:
@@ -18,5 +18,6 @@ jobs:
     uses: ./.github/workflows/gtk4-macos-dependencies.yml
     with:
       gnucash_repository: copystring/gnucash
-      gnucash_ref: a7f4c0e429ca71074581738090ec170d7e00ee59
+      gnucash_ref: 11ff096e73c2c3755f65e9ec5ddbd304d2f5d10e
       gtk_refresh: true
+
