@@ -22,7 +22,8 @@ HEAD_SHA = "e00227c29767508419ec2c2c0551eb2173ae9ec6"
 RUN_ID = 35833375037
 ARTIFACT_NAME = "gnucash-future-gtk4-mac-dependencies"
 DIGEST = "1" * 64
-CORE_REF = "7820bd5891d09a3264128721a445837983624213"
+BUNDLE_CORE_REF = "3eadf7eb4437e16789dcb2a57edb5c4a42e1253b"
+REFRESH_CORE_REF = "7820bd5891d09a3264128721a445837983624213"
 
 
 def arguments():
@@ -72,14 +73,14 @@ class ActionsArtifactVerifierTest(unittest.TestCase):
             f"dependencies_workflow: {WORKFLOW}",
             f"dependencies_head_sha: {HEAD_SHA}",
             "dependencies_deployment_target: '26.5'",
-            f"core_ref: {CORE_REF}",
+            f"core_ref: {BUNDLE_CORE_REF}",
             "docs_ref: 824a138e8588264c971bb58ad9dacd34420a6bd4",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)
 
         refresh = REFRESH.read_text(encoding="utf-8")
-        self.assertIn(f"gnucash_ref: {CORE_REF}", refresh)
+        self.assertIn(f"gnucash_ref: {REFRESH_CORE_REF}", refresh)
 
     def test_accepts_exact_completed_successful_unexpired_artifact(self):
         run, artifacts = fixtures()
