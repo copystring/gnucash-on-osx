@@ -80,7 +80,7 @@ class RefreshRecipeTests(unittest.TestCase):
             RECIPE.verify_moduleset(base, missing)
 
         changed = self.moduleset(RECIPE.EXPECTED_OUTPUT_PATCHES).replace(
-            "zlib-1.3.2.tar.xz", "zlib-1.3.1.tar.xz")
+            "zlib-1.3.2.tar.gz", "zlib-1.3.1.tar.gz")
         with self.assertRaisesRegex(ValueError, "unexpected zlib source identity"):
             RECIPE.verify_moduleset(base, changed)
 
@@ -131,8 +131,8 @@ class RefreshRecipeTests(unittest.TestCase):
             zlib_xml = (
                 '<repository name="zlib" href="https://zlib.net/fossils/" type="tarball"/>'
                 '<autotools id="zlib-gtk4-refresh" autogen-sh="configure">'
-                '<branch repo="zlib" module="zlib-1.3.2.tar.xz" version="1.3.2" '
-                'hash="sha256:d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3"/>'
+                '<branch repo="zlib" module="zlib-1.3.2.tar.gz" version="1.3.2" '
+                'hash="sha256:bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"/>'
                 '</autotools>')
         return (
             '<moduleset>' + zlib_xml + '<autotools id="gtk-4" autogenargs="--fixture">'

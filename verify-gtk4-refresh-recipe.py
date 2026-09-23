@@ -41,9 +41,9 @@ EXPECTED_REFRESH_ZLIB = {
     "id": "zlib-gtk4-refresh",
     "autogen-sh": "configure",
     "repo": "zlib",
-    "module": "zlib-1.3.2.tar.xz",
+    "module": "zlib-1.3.2.tar.gz",
     "version": "1.3.2",
-    "hash": "sha256:d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3",
+    "hash": "sha256:bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
     "href": "https://zlib.net/fossils/",
     "type": "tarball",
 }
