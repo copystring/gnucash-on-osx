@@ -207,7 +207,9 @@ jobs:
       - name: Bootstrap GTK-OSX
         run: |
           set -euo pipefail
-          "$JHBUILD" bootstrap-gtk-osx
+          # gtk-osx's bootstrap command requires a single moduleset path;
+          # the pinned docs overlay is needed only by the later docs build.
+          DOCS_MODULESET= "$JHBUILD" bootstrap-gtk-osx
 
       - name: Download published GTK4 dependencies
         if: env.DEPENDENCY_ARCHIVE_SOURCE == 'published'

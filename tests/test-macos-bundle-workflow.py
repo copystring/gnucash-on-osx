@@ -71,6 +71,16 @@ class BundleWorkflowContractTest(unittest.TestCase):
         )
         self.assertNotIn('"$JHBUILD" build gnucash-docs', self.preflight)
 
+    def test_gtk_osx_bootstrap_uses_a_single_moduleset(self):
+        bootstrap = self.preflight.split(
+            "      - name: Bootstrap GTK-OSX\n", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn('DOCS_MODULESET= "$JHBUILD" bootstrap-gtk-osx', bootstrap)
+        docs = self.preflight.split(
+            "      - name: Build GnuCash documentation\n", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn('"$JHBUILD" updateone gnucash-docs', docs)
+
     def test_bundler_uses_the_verified_jhbuild_install_prefix(self):
         self.assertIn(
             '"$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-prefix.sh" \\\n'
