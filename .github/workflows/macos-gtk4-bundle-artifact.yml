@@ -1,0 +1,30 @@
+name: Pinned GTK4 macOS bundle artifact
+
+on:
+  push:
+    branches:
+      - fix/gtk4-macos-bundle-artifact
+    paths:
+      - .github/workflows/macos-gtk4-bundle-artifact.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  bundle:
+    if: github.repository == 'copystring/gnucash-on-osx' && github.ref == 'refs/heads/fix/gtk4-macos-bundle-artifact'
+    uses: ./.github/workflows/macos-gtk4-bundle-preflight.yml
+    with:
+      core_repository: copystring/gnucash
+      core_ref: 11ff096e73c2c3755f65e9ec5ddbd304d2f5d10e
+      docs_repository: copystring/gnucash-docs
+      docs_ref: 824a138e8588264c971bb58ad9dacd34420a6bd4
+      # Reviewed dependency archive from the successful GTK4 refresh run.
+      dependencies_repository: copystring/gnucash-on-osx
+      dependencies_run_id: '35833375037'
+      dependencies_workflow: .github/workflows/gtk4-reviewed-macos-refresh.yml
+      dependencies_head_sha: e00227c29767508419ec2c2c0551eb2173ae9ec6
+      dependencies_artifact_name: gnucash-future-gtk4-mac-dependencies
+      # Internal archive compatibility contract, not an upstream support floor.
+      dependencies_deployment_target: '26.5'

@@ -90,6 +90,22 @@ Load command 1
                 self.assertEqual(metadata.bundle_minimum_version(contents, "otool"),
                                  "26.5")
 
+    def test_single_mach_o_uses_highest_architecture(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            binary = Path(temporary) / "gnucash"
+            binary.write_bytes(b"\xca\xfe\xba\xbe")
+            completed = subprocess.CompletedProcess(["otool"], 0, FAT_OUTPUT, "")
+            with mock.patch.object(metadata.subprocess, "run", return_value=completed):
+                self.assertEqual(
+                    metadata.mach_o_minimum_version(binary, "otool"), "26.5")
+
+    def test_single_mach_o_rejects_non_mach_o(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            binary = Path(temporary) / "gnucash"
+            binary.write_text("#!/bin/sh\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "not a Mach-O file"):
+                metadata.mach_o_minimum_version(binary, "otool")
+
 
 if __name__ == "__main__":
     unittest.main()

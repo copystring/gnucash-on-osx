@@ -176,6 +176,20 @@ def load_command_minimum_versions(output, path):
     return versions
 
 
+def mach_o_minimum_version(path, otool):
+    binary = Path(path)
+    if not binary.is_file() or not is_mach_o(binary):
+        raise ValueError(f"not a Mach-O file: {binary}")
+    completed = subprocess.run([otool, "-l", str(binary)], check=False,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                               text=True)
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or "no diagnostic"
+        raise ValueError(f"cannot inspect Mach-O file {binary}: {detail}")
+    versions = load_command_minimum_versions(completed.stdout, binary)
+    return max(versions, key=macos_version_key)
+
+
 def bundle_minimum_version(contents_path, otool):
     contents = Path(contents_path)
     if not contents.is_dir():
@@ -185,13 +199,7 @@ def bundle_minimum_version(contents_path, otool):
     for path in contents.rglob("*"):
         if path.is_symlink() or not path.is_file() or not is_mach_o(path):
             continue
-        completed = subprocess.run([otool, "-l", str(path)], check=False,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   text=True)
-        if completed.returncode != 0:
-            detail = completed.stderr.strip() or "no diagnostic"
-            raise ValueError(f"cannot inspect Mach-O file {path}: {detail}")
-        versions.extend(load_command_minimum_versions(completed.stdout, path))
+        versions.append(mach_o_minimum_version(path, otool))
 
     if not versions:
         raise ValueError(f"no Mach-O files found in bundle Contents: {contents}")
@@ -270,12 +278,17 @@ def create_parser():
     verify.add_argument("year")
 
     for command in ("bundle-minimum-system-version",
+                    "mach-o-minimum-system-version",
                     "synchronize-minimum-system-version",
                     "verify-minimum-system-version"):
         minimum = subparsers.add_parser(command)
-        if command != "bundle-minimum-system-version":
+        if command not in ("bundle-minimum-system-version",
+                           "mach-o-minimum-system-version"):
             minimum.add_argument("plist", type=Path)
-        minimum.add_argument("contents", type=Path)
+        if command == "mach-o-minimum-system-version":
+            minimum.add_argument("binary", type=Path)
+        else:
+            minimum.add_argument("contents", type=Path)
         minimum.add_argument("--otool", default="otool")
     return parser
 
@@ -291,6 +304,8 @@ def main():
         verify_plist(args.plist, args.core_version, args.revision, args.year)
     elif args.command == "bundle-minimum-system-version":
         print(bundle_minimum_version(args.contents, args.otool))
+    elif args.command == "mach-o-minimum-system-version":
+        print(mach_o_minimum_version(args.binary, args.otool))
     elif args.command == "synchronize-minimum-system-version":
         print(synchronize_minimum_version(args.plist, args.contents, args.otool))
     else:

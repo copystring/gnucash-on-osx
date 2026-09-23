@@ -218,6 +218,8 @@ mkdir -p "$minimum_fixture"
 write_mach_o "$minimum_fixture/fat"
 write_mach_o "$minimum_fixture/legacy"
 : > "$minimum_fixture/resource.txt"
+test "$("$python" "$metadata" mach-o-minimum-system-version \
+    "$minimum_fixture/fat" --otool "$otool")" = 26.5
 test "$("$python" "$metadata" bundle-minimum-system-version \
     "$minimum_fixture" --otool "$otool")" = 26.5
 

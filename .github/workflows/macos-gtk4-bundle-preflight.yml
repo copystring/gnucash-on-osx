@@ -25,8 +25,57 @@ on:
       dependencies_sha256:
         description: SHA-256 of the published GTK4 macOS dependency archive
         required: true
+  workflow_call:
+    inputs:
+      core_repository:
+        required: true
+        type: string
+      core_ref:
+        required: true
+        type: string
+      docs_repository:
+        required: false
+        type: string
+        default: ''
+      docs_ref:
+        required: false
+        type: string
+        default: ''
+      dependencies_url:
+        required: false
+        type: string
+        default: ''
+      dependencies_sha256:
+        required: false
+        type: string
+        default: ''
+      dependencies_repository:
+        required: false
+        type: string
+        default: ''
+      dependencies_run_id:
+        required: false
+        type: string
+        default: ''
+      dependencies_workflow:
+        required: false
+        type: string
+        default: ''
+      dependencies_head_sha:
+        required: false
+        type: string
+        default: ''
+      dependencies_artifact_name:
+        required: false
+        type: string
+        default: ''
+      dependencies_deployment_target:
+        required: false
+        type: string
+        default: ''
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -62,6 +111,54 @@ jobs:
         uses: actions/checkout@v6
         with:
           path: gnucash-on-osx
+
+      - name: Validate dependency archive source
+        env:
+          DEPENDENCIES_URL: ${{ inputs.dependencies_url }}
+          DEPENDENCIES_SHA256: ${{ inputs.dependencies_sha256 }}
+          DEPENDENCIES_REPOSITORY: ${{ inputs.dependencies_repository }}
+          DEPENDENCIES_RUN_ID: ${{ inputs.dependencies_run_id }}
+          DEPENDENCIES_WORKFLOW: ${{ inputs.dependencies_workflow }}
+          DEPENDENCIES_HEAD_SHA: ${{ inputs.dependencies_head_sha }}
+          DEPENDENCIES_ARTIFACT_NAME: ${{ inputs.dependencies_artifact_name }}
+          DEPENDENCIES_DEPLOYMENT_TARGET: ${{ inputs.dependencies_deployment_target }}
+        run: |
+          set -euo pipefail
+          if test -n "$DEPENDENCIES_RUN_ID"; then
+            test -z "$DEPENDENCIES_URL"
+            test -z "$DEPENDENCIES_SHA256"
+            test -n "$DEPENDENCIES_REPOSITORY"
+            test -n "$DEPENDENCIES_WORKFLOW"
+            test -n "$DEPENDENCIES_HEAD_SHA"
+            test -n "$DEPENDENCIES_ARTIFACT_NAME"
+            test -n "$DEPENDENCIES_DEPLOYMENT_TARGET"
+            case "$DEPENDENCIES_RUN_ID" in
+              *[!0-9]*|'') echo 'Invalid dependency run ID.' >&2; exit 1 ;;
+            esac
+            printf 'DEPENDENCY_ARCHIVE_SOURCE=artifact\n' >> "$GITHUB_ENV"
+          else
+            test -n "$DEPENDENCIES_URL"
+            test -n "$DEPENDENCIES_SHA256"
+            test -z "$DEPENDENCIES_REPOSITORY"
+            test -z "$DEPENDENCIES_WORKFLOW"
+            test -z "$DEPENDENCIES_HEAD_SHA"
+            test -z "$DEPENDENCIES_ARTIFACT_NAME"
+            case "$DEPENDENCIES_SHA256" in
+              *[!0-9a-f]*|'') echo 'Invalid dependency SHA-256.' >&2; exit 1 ;;
+            esac
+            test "${#DEPENDENCIES_SHA256}" -eq 64
+            printf 'DEPENDENCY_ARCHIVE_SOURCE=published\n' >> "$GITHUB_ENV"
+          fi
+          if test -n "$DEPENDENCIES_DEPLOYMENT_TARGET"; then
+            if ! [[ "$DEPENDENCIES_DEPLOYMENT_TARGET" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+              echo 'Invalid dependency deployment target.' >&2
+              exit 1
+            fi
+            printf 'ARCHIVE_MACOS_DEPLOYMENT_TARGET=%s\n' \
+              "$DEPENDENCIES_DEPLOYMENT_TARGET" >> "$GITHUB_ENV"
+            printf 'MACOSX_DEPLOYMENT_TARGET=%s\n' \
+              "$DEPENDENCIES_DEPLOYMENT_TARGET" >> "$GITHUB_ENV"
+          fi
 
       - name: Configure optional pinned documentation source
         env:
@@ -101,6 +198,10 @@ jobs:
           bash "$RUNNER_TEMP/gtk-osx-setup.sh"
           cp "$GITHUB_WORKSPACE/gnucash-on-osx/jhbuildrc-custom" \
             "$HOME/.config/jhbuildrc-custom"
+          "$JHBUILD" help >/dev/null
+          "$JHBUILD" run bash \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-prefix.sh" \
+            "$INSTALL_PREFIX"
           echo "$HOME/.new_local/bin" >> "$GITHUB_PATH"
 
       - name: Bootstrap GTK-OSX
@@ -109,18 +210,132 @@ jobs:
           "$JHBUILD" bootstrap-gtk-osx
 
       - name: Download published GTK4 dependencies
+        if: env.DEPENDENCY_ARCHIVE_SOURCE == 'published'
         env:
           DEPENDENCIES_URL: ${{ inputs.dependencies_url }}
           DEPENDENCIES_SHA256: ${{ inputs.dependencies_sha256 }}
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/gnucash-gtk4-dependencies.tar.xz"
-          mkdir -p "$INSTALL_PREFIX"
           curl --fail --location --show-error "$DEPENDENCIES_URL" --output "$archive"
           echo "$DEPENDENCIES_SHA256  $archive" | shasum -a 256 -c -
+          printf 'DEPENDENCIES_ARCHIVE_SHA256=%s\n' "$DEPENDENCIES_SHA256" \
+            >> "$GITHUB_ENV"
+
+      - name: Resolve pinned GTK4 dependency artifact
+        id: dependency_artifact
+        if: env.DEPENDENCY_ARCHIVE_SOURCE == 'artifact'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDENCIES_REPOSITORY: ${{ inputs.dependencies_repository }}
+          DEPENDENCIES_RUN_ID: ${{ inputs.dependencies_run_id }}
+          DEPENDENCIES_WORKFLOW: ${{ inputs.dependencies_workflow }}
+          DEPENDENCIES_HEAD_SHA: ${{ inputs.dependencies_head_sha }}
+          DEPENDENCIES_ARTIFACT_NAME: ${{ inputs.dependencies_artifact_name }}
+          DEPENDENCIES_DEPLOYMENT_TARGET: ${{ inputs.dependencies_deployment_target }}
+        run: |
+          set -euo pipefail
+          run_json="$RUNNER_TEMP/dependency-run.json"
+          artifacts_json="$RUNNER_TEMP/dependency-artifacts.json"
+          api="https://api.github.com/repos/$DEPENDENCIES_REPOSITORY"
+          headers=(
+            --header 'Accept: application/vnd.github+json'
+            --header "Authorization: Bearer $GH_TOKEN"
+            --header 'X-GitHub-Api-Version: 2026-03-10'
+          )
+          curl --fail --location --show-error "${headers[@]}" \
+            "$api/actions/runs/$DEPENDENCIES_RUN_ID" --output "$run_json"
+          curl --fail --location --show-error "${headers[@]}" --get \
+            --data-urlencode "name=$DEPENDENCIES_ARTIFACT_NAME" \
+            --data-urlencode 'per_page=100' \
+            "$api/actions/runs/$DEPENDENCIES_RUN_ID/artifacts" \
+            --output "$artifacts_json"
+          python3 \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/verify-github-actions-artifact.py" \
+            --run-json "$run_json" \
+            --artifacts-json "$artifacts_json" \
+            --repository "$DEPENDENCIES_REPOSITORY" \
+            --run-id "$DEPENDENCIES_RUN_ID" \
+            --workflow "$DEPENDENCIES_WORKFLOW" \
+            --head-sha "$DEPENDENCIES_HEAD_SHA" \
+            --artifact-name "$DEPENDENCIES_ARTIFACT_NAME" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Download pinned GTK4 dependency artifact
+        if: env.DEPENDENCY_ARCHIVE_SOURCE == 'artifact'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_DOWNLOAD_URL: ${{ steps.dependency_artifact.outputs.artifact_download_url }}
+          ARTIFACT_SHA256: ${{ steps.dependency_artifact.outputs.artifact_sha256 }}
+          DEPENDENCIES_REPOSITORY: ${{ inputs.dependencies_repository }}
+          DEPENDENCIES_RUN_ID: ${{ inputs.dependencies_run_id }}
+          DEPENDENCIES_WORKFLOW: ${{ inputs.dependencies_workflow }}
+          DEPENDENCIES_HEAD_SHA: ${{ inputs.dependencies_head_sha }}
+          DEPENDENCIES_ARTIFACT_NAME: ${{ inputs.dependencies_artifact_name }}
+          DEPENDENCIES_DEPLOYMENT_TARGET: ${{ inputs.dependencies_deployment_target }}
+        run: |
+          set -euo pipefail
+          artifact_zip="$RUNNER_TEMP/gnucash-gtk4-dependencies-artifact.zip"
+          extracted="$RUNNER_TEMP/gnucash-gtk4-dependencies-artifact"
+          archive="$RUNNER_TEMP/gnucash-gtk4-dependencies.tar.xz"
+          headers=(
+            --header 'Accept: application/vnd.github+json'
+            --header "Authorization: Bearer $GH_TOKEN"
+            --header 'X-GitHub-Api-Version: 2026-03-10'
+          )
+          curl --fail --location --show-error "${headers[@]}" \
+            "$ARTIFACT_DOWNLOAD_URL" --output "$artifact_zip"
+          echo "$ARTIFACT_SHA256  $artifact_zip" | shasum -a 256 -c -
+          mkdir "$extracted"
+          ditto -x -k "$artifact_zip" "$extracted"
+          source_archive="$extracted/gnucash-future-gtk4-mac-dependencies.tar.xz"
+          sidecar="$source_archive.sha256"
+          test -f "$source_archive"
+          test -f "$sidecar"
+          recorded_sha256="$(awk 'NR == 1 && NF == 2 { print $1 }' "$sidecar")"
+          case "$recorded_sha256" in
+            *[!0-9a-f]*|'') echo 'Invalid archive SHA-256 sidecar.' >&2; exit 1 ;;
+          esac
+          test "${#recorded_sha256}" -eq 64
+          test "$(wc -l < "$sidecar" | tr -d ' ')" -eq 1
+          actual_sha256="$(shasum -a 256 "$source_archive" | awk '{ print $1 }')"
+          test "$actual_sha256" = "$recorded_sha256"
+          mv "$source_archive" "$archive"
+          printf 'DEPENDENCIES_ARCHIVE_SHA256=%s\n' "$actual_sha256" \
+            >> "$GITHUB_ENV"
+          {
+            printf '### Dependency artifact provenance\n\n'
+            printf '%s\n' "- Repository: $DEPENDENCIES_REPOSITORY"
+            printf '%s\n' "- Workflow: $DEPENDENCIES_WORKFLOW"
+            printf '%s\n' "- Run: $DEPENDENCIES_RUN_ID"
+            printf '%s\n' "- Head: $DEPENDENCIES_HEAD_SHA"
+            printf '%s\n' "- Artifact: $DEPENDENCIES_ARTIFACT_NAME"
+            printf '%s\n' "- Deployment target: $DEPENDENCIES_DEPLOYMENT_TARGET"
+            printf '%s\n' "- Artifact ZIP SHA-256: $ARTIFACT_SHA256"
+            printf '%s\n' "- Dependency archive SHA-256: $actual_sha256"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify and extract GTK4 dependencies
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/gnucash-gtk4-dependencies.tar.xz"
+          echo "$DEPENDENCIES_ARCHIVE_SHA256  $archive" | shasum -a 256 -c -
+          mkdir -p "$INSTALL_PREFIX"
           tar -xJf "$archive" -C "$INSTALL_PREFIX"
           "$INSTALL_PREFIX/bin/pkgconf" --exists \
             'gtk4 >= 4.14' gtk4-macos gwengui-gtk4 aqbanking
+          if test -n "${ARCHIVE_MACOS_DEPLOYMENT_TARGET:-}"; then
+            metadata="$GITHUB_WORKSPACE/gnucash-on-osx/macos-bundle-metadata.py"
+            gtk_min_os="$(python3 "$metadata" mach-o-minimum-system-version \
+              "$INSTALL_PREFIX/lib/libgtk-4.1.dylib")"
+            test "$gtk_min_os" = "$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+            source="$RUNNER_TEMP/bundle-compiler-target.c"
+            library="$RUNNER_TEMP/libbundle-compiler-target.dylib"
+            printf 'int bundle_compiler_target_probe(void) { return 0; }\n' > "$source"
+            "$JHBUILD" run bash \
+              "$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-deployment-target.sh" \
+              "$ARCHIVE_MACOS_DEPLOYMENT_TARGET" "$source" "$library"
+          fi
 
       - name: Download Googletest
         run: |
@@ -148,7 +363,8 @@ jobs:
             "$JHBUILD" updateone gnucash-docs
             verify_pinned_docs_checkout
           fi
-          "$JHBUILD" build gnucash-docs
+          # Keep archive consumption bounded even if module dependencies drift.
+          "$JHBUILD" --no-interact --exit-on-error buildone gnucash-docs
           verify_pinned_docs_checkout
 
           test -d "$INSTALL_PREFIX/share/doc/gnucash-docs/C/gnucash-guide"
@@ -171,13 +387,30 @@ jobs:
       - name: Build and install GnuCash
         run: |
           set -euo pipefail
+          cmake_target=()
+          if test -n "${ARCHIVE_MACOS_DEPLOYMENT_TARGET:-}"; then
+            cmake_target=(
+              "-DCMAKE_OSX_DEPLOYMENT_TARGET=$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+            )
+          fi
           cmake -S "$GITHUB_WORKSPACE/gnucash-source" -B "$ROOT_DIR/build" -GNinja \
             -DPKG_CONFIG_EXECUTABLE="$INSTALL_PREFIX/bin/pkgconf" \
             -DCMAKE_PREFIX_PATH="$INSTALL_PREFIX" \
             -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX" \
+            "${cmake_target[@]}" \
             -DGTEST_ROOT="$RUNNER_TEMP/googletest-1.17.0"
           ninja -C "$ROOT_DIR/build"
           ninja -C "$ROOT_DIR/build" install
+          if test -n "${ARCHIVE_MACOS_DEPLOYMENT_TARGET:-}"; then
+            cache_target="$(sed -n \
+              's/^CMAKE_OSX_DEPLOYMENT_TARGET:[^=]*=//p' \
+              "$ROOT_DIR/build/CMakeCache.txt")"
+            test "$cache_target" = "$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+            core_min_os="$(python3 \
+              "$GITHUB_WORKSPACE/gnucash-on-osx/macos-bundle-metadata.py" \
+              mach-o-minimum-system-version "$INSTALL_PREFIX/bin/gnucash")"
+            test "$core_min_os" = "$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+          fi
 
       - name: Prepare macOS app bundle metadata
         run: |
@@ -229,6 +462,16 @@ jobs:
 
           bash "$GITHUB_WORKSPACE/gnucash-on-osx/verify-macos-app-bundle.sh" \
             "$app" "$CORE_VERSION" "$BUNDLE_REVISION" "$BUNDLE_YEAR"
+          if test -n "${ARCHIVE_MACOS_DEPLOYMENT_TARGET:-}"; then
+            app_min_os="$(python3 \
+              "$GITHUB_WORKSPACE/gnucash-on-osx/macos-bundle-metadata.py" \
+              mach-o-minimum-system-version "$app/Contents/MacOS/Gnucash")"
+            test "$app_min_os" = "$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+            bundle_min_os="$(python3 \
+              "$GITHUB_WORKSPACE/gnucash-on-osx/macos-bundle-metadata.py" \
+              bundle-minimum-system-version "$app/Contents")"
+            test "$bundle_min_os" = "$ARCHIVE_MACOS_DEPLOYMENT_TARGET"
+          fi
 
           forbidden="$(find "$app/Contents" \
             \( -ipath '*gtk-3.0*' -o -iname '*gtk3*' -o -iname '*gtk-3*' -o -iname '*webkit2gtk*' \) \

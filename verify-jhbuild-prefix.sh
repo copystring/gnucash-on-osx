@@ -13,3 +13,9 @@ if test "${JHBUILD_PREFIX:-}" != "$expected_prefix"; then
         "$expected_prefix" "${JHBUILD_PREFIX:-<unset>}" >&2
     exit 1
 fi
+
+if test "${PREFIX:-}" != "$expected_prefix"; then
+    printf 'Expected PREFIX=%s, got %s\n' \
+        "$expected_prefix" "${PREFIX:-<unset>}" >&2
+    exit 1
+fi

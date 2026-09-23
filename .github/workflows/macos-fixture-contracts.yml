@@ -18,19 +18,23 @@ on:
       - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-gir-closure.py
       - verify-gtk4-refresh-recipe.py
+      - verify-github-actions-artifact.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
       - tests/test-materialize-gdbus-codegen.py
+      - tests/test-macos-bundle-workflow.py
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
       - tests/test-verify-gtk4-refresh-gir-closure.py
       - tests/test-verify-gtk4-refresh-recipe.py
+      - tests/test-verify-github-actions-artifact.py
       - tests/test-verify-macos-app-bundle.sh
       - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
+      - .github/workflows/macos-gtk4-bundle-artifact.yml
       - .github/workflows/macos-fixture-contracts.yml
   push:
     branches:
@@ -52,19 +56,23 @@ on:
       - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-gir-closure.py
       - verify-gtk4-refresh-recipe.py
+      - verify-github-actions-artifact.py
       - tests/test-depstarball-bundle-inputs.sh
       - tests/test-depstarball-icon-themes.sh
       - tests/test-generate-docs-overlay.py
       - tests/test-macos-bundle-metadata.py
       - tests/test-materialize-gdbus-codegen.py
+      - tests/test-macos-bundle-workflow.py
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
       - tests/test-verify-gtk4-refresh-gir-closure.py
       - tests/test-verify-gtk4-refresh-recipe.py
+      - tests/test-verify-github-actions-artifact.py
       - tests/test-verify-macos-app-bundle.sh
       - .github/workflows/gtk4-macos-dependencies.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
+      - .github/workflows/macos-gtk4-bundle-artifact.yml
       - .github/workflows/macos-fixture-contracts.yml
   workflow_dispatch:
 
@@ -93,6 +101,8 @@ jobs:
           python3 tests/test-generate-docs-overlay.py
           python3 tests/test-macos-bundle-metadata.py
           python3 tests/test-materialize-gdbus-codegen.py
+          python3 tests/test-macos-bundle-workflow.py
+          python3 tests/test-verify-github-actions-artifact.py
           bash tests/test-verify-jhbuild-deployment-target.sh
           bash tests/test-verify-jhbuild-prefix.sh
           bash tests/test-verify-gtk4-refresh-build-closure.sh

@@ -25,6 +25,7 @@ chmod +x "$fixture/jhbuild" "$fixture/jhbuild-real"
 
 expected_prefix=/Users/runner/gnucash/inst
 export JHBUILD_PREFIX="$expected_prefix"
+export PREFIX="$expected_prefix"
 
 old_inline='expected_prefix=$1
 if [ "${JHBUILD_PREFIX:-}" != "$expected_prefix" ]; then
@@ -45,5 +46,13 @@ if JHBUILD_PREFIX=/unexpected/prefix \
     exit 1
 fi
 grep -Fq "Expected JHBUILD_PREFIX=$expected_prefix, got /unexpected/prefix" "$log"
+
+if PREFIX=/unexpected/prefix \
+    "$fixture/jhbuild" run bash "$verify" "$expected_prefix" \
+    >"$log" 2>&1; then
+    echo 'Expected mismatched PREFIX to fail' >&2
+    exit 1
+fi
+grep -Fq "Expected PREFIX=$expected_prefix, got /unexpected/prefix" "$log"
 
 echo 'JHBuild prefix contract fixtures passed.'
