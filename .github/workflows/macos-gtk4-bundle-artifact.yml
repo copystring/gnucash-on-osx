@@ -17,7 +17,7 @@ jobs:
     uses: ./.github/workflows/macos-gtk4-bundle-preflight.yml
     with:
       core_repository: copystring/gnucash
-      core_ref: 11ff096e73c2c3755f65e9ec5ddbd304d2f5d10e
+      core_ref: 7820bd5891d09a3264128721a445837983624213
       docs_repository: copystring/gnucash-docs
       # Applied for the docs build, after GTK-OSX bootstraps its base moduleset.
       docs_branch: fix/gtk4-docs-integrated-prepr-20260912

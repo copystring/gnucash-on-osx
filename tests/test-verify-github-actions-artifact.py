@@ -10,6 +10,8 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[1] / "verify-github-actions-artifact.py"
 HANDOFF = (Path(__file__).resolve().parents[1] / ".github" / "workflows" /
            "macos-gtk4-bundle-artifact.yml")
+REFRESH = (Path(__file__).resolve().parents[1] / ".github" / "workflows" /
+           "gtk4-reviewed-macos-refresh.yml")
 SPEC = importlib.util.spec_from_file_location("verify_actions_artifact", SCRIPT)
 verifier = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(verifier)
@@ -20,6 +22,7 @@ HEAD_SHA = "e00227c29767508419ec2c2c0551eb2173ae9ec6"
 RUN_ID = 35833375037
 ARTIFACT_NAME = "gnucash-future-gtk4-mac-dependencies"
 DIGEST = "1" * 64
+CORE_REF = "7820bd5891d09a3264128721a445837983624213"
 
 
 def arguments():
@@ -69,11 +72,14 @@ class ActionsArtifactVerifierTest(unittest.TestCase):
             f"dependencies_workflow: {WORKFLOW}",
             f"dependencies_head_sha: {HEAD_SHA}",
             "dependencies_deployment_target: '26.5'",
-            "core_ref: 11ff096e73c2c3755f65e9ec5ddbd304d2f5d10e",
+            f"core_ref: {CORE_REF}",
             "docs_ref: 824a138e8588264c971bb58ad9dacd34420a6bd4",
         ):
             with self.subTest(expected=expected):
                 self.assertIn(expected, workflow)
+
+        refresh = REFRESH.read_text(encoding="utf-8")
+        self.assertIn(f"gnucash_ref: {CORE_REF}", refresh)
 
     def test_accepts_exact_completed_successful_unexpired_artifact(self):
         run, artifacts = fixtures()
