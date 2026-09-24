@@ -1,0 +1,39 @@
+name: Inspect failed Finder test diagnostics
+
+on:
+  push:
+    branches:
+      - fix/gtk4-macos-bundle-artifact
+    paths:
+      - .github/workflows/diagnose-finder-artifact.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  diagnostics:
+    if: github.repository == 'copystring/gnucash-on-osx'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-gtk4-bundle-preflight
+          run-id: '35997464469'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: diagnostics
+      - name: Report Finder test logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          find diagnostics -type f -print
+          while IFS= read -r -d '' log; do
+            case "$log" in
+              *finder-open*.log)
+                printf 'Log: %s\n' "$log"
+                while IFS= read -r line; do
+                  printf '::error title=Finder diagnostic::%s\n' "$line"
+                done < <(tail -n 35 "$log")
+                ;;
+            esac
+          done < <(find diagnostics -type f -print0)
