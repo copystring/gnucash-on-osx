@@ -92,6 +92,13 @@ class BundleWorkflowContractTest(unittest.TestCase):
         self.assertIn('"$JHBUILD" updateone gnucash-docs', docs)
 
     def test_bundler_uses_the_verified_jhbuild_install_prefix(self):
+        setup = self.preflight.split(
+            "      - name: Install GTK-OSX build environment\n", 1
+        )[1].split("\n      - name:", 1)[0]
+        self.assertIn('prepare-jhbuild-source.sh" \\', setup)
+        self.assertIn('"$HOME/Source/jhbuild" "$JHBUILD_REF"', setup)
+        self.assertIn('git -C "$HOME/Source/jhbuild" checkout --detach "$JHBUILD_REF"', setup)
+        self.assertIn('GTK-OSX setup did not install a working JHBuild launcher.', setup)
         self.assertIn(
             '"$GITHUB_WORKSPACE/gnucash-on-osx/verify-jhbuild-prefix.sh" \\\n'
             '            "$INSTALL_PREFIX"',
