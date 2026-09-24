@@ -549,6 +549,15 @@ jobs:
           fi
           trap - EXIT
 
+      - name: Verify Finder file-open precedes last-book fallback
+        run: |
+          set -euo pipefail
+          "$JHBUILD" run python3 \
+            "$GITHUB_WORKSPACE/gnucash-on-osx/tests/test-macos-finder-open.py" \
+            --app "$APP_BUNDLE" \
+            --sample-book "$GITHUB_WORKSPACE/gnucash-source/libgnucash/backend/xml/test/test-files/load-save/sample1.gnucash" \
+            --runtime-root "$RUNNER_TEMP/gnucash-finder-open"
+
       - name: Package smoke-tested GTK4 app bundle
         run: |
           set -euo pipefail
@@ -628,4 +637,5 @@ jobs:
           path: |
             ${{ runner.temp }}/gnucash-bundle-otool.txt
             ${{ runner.temp }}/gnucash-bundle-startup.log
+            ${{ runner.temp }}/gnucash-finder-open/*.log
           if-no-files-found: ignore
