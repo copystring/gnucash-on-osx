@@ -96,6 +96,11 @@ class BundleWorkflowContractTest(unittest.TestCase):
             "      - name: Install GTK-OSX build environment\n", 1
         )[1].split("\n      - name:", 1)[0]
         self.assertIn('prepare-jhbuild-source.sh" \\', setup)
+        self.assertIn('install-pinned-jhbuildrc.sh" \\', setup)
+        self.assertLess(setup.index('gtk-osx-setup.sh"'),
+                        setup.index('install-pinned-jhbuildrc.sh"'))
+        self.assertLess(setup.index('install-pinned-jhbuildrc.sh"'),
+                        setup.index('"$JHBUILD" help'))
         self.assertIn('"$HOME/Source/jhbuild" "$JHBUILD_REF"', setup)
         self.assertIn('git -C "$HOME/Source/jhbuild" checkout --detach "$JHBUILD_REF"', setup)
         self.assertIn('GTK-OSX setup did not install a working JHBuild launcher.', setup)

@@ -8,6 +8,7 @@ on:
       - .github/workflows/macos-gtk4-bundle-artifact.yml
       - .github/workflows/macos-gtk4-bundle-preflight.yml
       - prepare-jhbuild-source.sh
+      - install-pinned-jhbuildrc.sh
 
 permissions:
   actions: read

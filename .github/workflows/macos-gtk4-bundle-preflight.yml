@@ -213,6 +213,8 @@ jobs:
           bash "$GITHUB_WORKSPACE/gnucash-on-osx/prepare-jhbuild-source.sh" \
             "$HOME/Source/jhbuild" "$JHBUILD_REF"
           bash "$RUNNER_TEMP/gtk-osx-setup.sh"
+          bash "$GITHUB_WORKSPACE/gnucash-on-osx/install-pinned-jhbuildrc.sh" \
+            "$GTK_OSX_SETUP_REF" "$HOME/.config/jhbuildrc"
           git -C "$HOME/Source/jhbuild" checkout --detach "$JHBUILD_REF"
           test "$(git -C "$HOME/Source/jhbuild" rev-parse HEAD)" = "$JHBUILD_REF"
           test -f "$HOME/Source/jhbuild/jhbuild/__init__.py" || {

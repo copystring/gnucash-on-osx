@@ -15,6 +15,7 @@ on:
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - prepare-jhbuild-source.sh
+      - install-pinned-jhbuildrc.sh
       - verify-gtk4-refresh-build-closure.sh
       - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-gir-closure.py
@@ -29,6 +30,7 @@ on:
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-prepare-jhbuild-source.sh
+      - tests/test-install-pinned-jhbuildrc.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
       - tests/test-verify-gtk4-refresh-gir-closure.py
       - tests/test-verify-gtk4-refresh-recipe.py
@@ -55,6 +57,7 @@ on:
       - verify-jhbuild-deployment-target.sh
       - verify-jhbuild-prefix.sh
       - prepare-jhbuild-source.sh
+      - install-pinned-jhbuildrc.sh
       - verify-gtk4-refresh-build-closure.sh
       - verify-gtk4-refresh-gdbus-codegen.sh
       - verify-gtk4-refresh-gir-closure.py
@@ -69,6 +72,7 @@ on:
       - tests/test-verify-jhbuild-deployment-target.sh
       - tests/test-verify-jhbuild-prefix.sh
       - tests/test-prepare-jhbuild-source.sh
+      - tests/test-install-pinned-jhbuildrc.sh
       - tests/test-verify-gtk4-refresh-build-closure.sh
       - tests/test-verify-gtk4-refresh-gir-closure.py
       - tests/test-verify-gtk4-refresh-recipe.py
@@ -110,6 +114,7 @@ jobs:
           bash tests/test-verify-jhbuild-deployment-target.sh
           bash tests/test-verify-jhbuild-prefix.sh
           bash tests/test-prepare-jhbuild-source.sh
+          bash tests/test-install-pinned-jhbuildrc.sh
           bash tests/test-verify-gtk4-refresh-build-closure.sh
           python3 tests/test-verify-gtk4-refresh-gir-closure.py
           python3 tests/test-verify-gtk4-refresh-recipe.py
