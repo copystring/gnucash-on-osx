@@ -6,6 +6,7 @@ on:
       - fix/gtk4-macos-bundle-artifact
     paths:
       - .github/workflows/macos-gtk4-bundle-artifact.yml
+      - .github/workflows/macos-gtk4-bundle-preflight.yml
 
 permissions:
   actions: read
